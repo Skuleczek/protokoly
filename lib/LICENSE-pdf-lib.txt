@@ -1,0 +1,2 @@
+pdf-lib.js zawiera biblioteki pdf-lib (Andrew Dillon) i @pdf-lib/fontkit – licencja MIT.
+Treść licencji znajduje się na końcu pliku pdf-lib.js.

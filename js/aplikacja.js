@@ -6,6 +6,7 @@
 //   #/przeglad/ID           – centrale w przeglądzie
 //   #/protokol/ID           – formularz protokołu
 //   #/uzytkownicy           – osoby i kody (tylko administrator)
+//   #/pdf/przeglad/ID, #/pdf/grupa/ID – wybór protokołów do PDF
 // ============================================================
 
 import { baza, noweId, poprosOTrwalyZapis, przyBledzieZapisu } from './baza.js';
@@ -118,6 +119,7 @@ async function ekranGrupa(id) {
           </a></li>`).join('')}
       </ul>
       <div class="opcje">
+        ${protokoly.length ? `<a class="sredni przycisk-link" href="#/pdf/grupa/${id}">📄 PDF z całej grupy</a>` : ''}
         <button class="sredni" data-akcja="zmienNazweGrupy" data-id="${id}">✎ Zmień nazwę grupy</button>
         ${jestAdminem() ? `<button class="sredni niebezpieczny" data-akcja="usunGrupe" data-id="${id}">🗑 Usuń grupę</button>` : ''}
       </div>
@@ -165,7 +167,7 @@ async function ekranPrzeglad(id) {
         }).join('')}
       </ul>
       <div class="opcje">
-        <button class="sredni" disabled title="Etap 2">📄 Pobierz PDF (wkrótce)</button>
+        ${protokoly.length ? `<a class="sredni przycisk-link" href="#/pdf/przeglad/${id}">📄 PDF przeglądu</a>` : ''}
         ${jestAdminem() ? `<button class="sredni niebezpieczny" data-akcja="usunPrzeglad" data-id="${id}">🗑 Usuń przegląd</button>` : ''}
       </div>
     </main>`;
@@ -339,6 +341,7 @@ async function ekranProtokol(id) {
         </label>
       </section>
 
+      <button class="sredni" data-akcja="pdfProtokolu">📄 PDF tego protokołu</button>
       ${mozeUsunacProtokol(p) ? '<button class="sredni niebezpieczny" data-akcja="usunProtokol">🗑 Usuń ten protokół</button>' : ''}
     </main>
     <footer class="dolny">
@@ -346,6 +349,112 @@ async function ekranProtokol(id) {
       <button class="duzy glowny" data-akcja="nastepna">Zapisz i następna ➜</button>
     </footer>`;
   odswiezLicznik();
+}
+
+// ------------------------------------------------------------
+// PDF: wybór protokołów i tworzenie pliku
+// ------------------------------------------------------------
+let wyborPdf = null; // { protokoly, nazwaPliku, wybrane: Set }
+
+const nazwaPlikuPdf = (...czesci) => `${czesci.map((c) => C.idKonta(c)).filter(Boolean).join('_')}.pdf`;
+
+async function ekranWyboruPdf(rodzaj, id) {
+  let protokoly, przeglady, grupa;
+  if (rodzaj === 'przeglad') {
+    const pg = await baza.pobierz('przeglady', id);
+    if (!pg) return idzDo('#/');
+    grupa = await baza.pobierz('grupy', pg.grupaId);
+    przeglady = [pg];
+    protokoly = await protokolyPrzegladu(id);
+  } else {
+    grupa = await baza.pobierz('grupy', id);
+    if (!grupa) return idzDo('#/');
+    przeglady = sortujPrzeglady(await baza.wgIndeksu('przeglady', 'grupaId', id)).reverse(); // od najstarszego
+    protokoly = sortujProtokoly(await baza.wgIndeksu('protokoly', 'grupaId', id));
+  }
+  // Kolejność w pliku: data przeglądu, potem kolejność dodania central.
+  const kolejnosc = przeglady.map((x) => x.id);
+  protokoly.sort((a, b) => kolejnosc.indexOf(a.przegladId) - kolejnosc.indexOf(b.przegladId) || a.utworzono - b.utworzono);
+  const nazwa = rodzaj === 'przeglad'
+    ? nazwaPlikuPdf('Protokoly', grupa.nazwa, przeglady[0].data)
+    : nazwaPlikuPdf('Protokoly', grupa.nazwa);
+  wyborPdf = { protokoly, nazwaPliku: nazwa, wybrane: new Set(protokoly.map((p) => p.id)) };
+
+  const powrot = rodzaj === 'przeglad' ? `#/przeglad/${id}` : `#/grupa/${id}`;
+  ekran.innerHTML = `
+    <header class="pasek"><a class="wstecz" href="${powrot}">‹</a><h1>PDF – ${h(grupa.nazwa)}</h1></header>
+    <main class="formularz">
+      <p class="info">Każdy protokół zaczyna się od nowej strony i ma własną numerację – jak osobne pliki połączone w jeden.</p>
+      <div class="rzad">
+        <button class="sredni" data-akcja="pdfWszystkie" data-wartosc="1">☑ Zaznacz wszystkie</button>
+        <button class="sredni" data-akcja="pdfWszystkie" data-wartosc="">☐ Odznacz</button>
+      </div>
+      ${przeglady.map((pg) => {
+        const lista = protokoly.filter((p) => p.przegladId === pg.id);
+        if (!lista.length) return '';
+        return `<h2>Przegląd ${P.dataPL(pg.data)} ${przeglady.length > 1 ? `<button class="maly-link" data-akcja="pdfPrzeglad" data-id="${pg.id}">zaznacz/odznacz</button>` : ''}</h2>
+          ${lista.map((p) => {
+            const st = P.postep(p);
+            return `<label class="wiersz wybor-pdf">
+              <input type="checkbox" checked data-pdf="${p.id}" data-przeglad="${pg.id}">
+              <span><span class="tytul">${h(P.opisCentrali(p))}</span>
+              <span class="opis">nr fabr. ${h(p.naglowek.nrFabr || '–')} · 👤 ${h(p.autorImie || '–')}
+                ${st.gotowy ? '<span class="plakietka ok">✓</span>' : `<span class="plakietka brak">braki: ${st.brakuje + st.flagi}</span>`}</span></span>
+            </label>`;
+          }).join('')}`;
+      }).join('')}
+    </main>
+    <footer class="dolny">
+      <button class="duzy glowny" data-akcja="utworzPdf" id="przyciskPdf">📄 Utwórz PDF (${protokoly.length})</button>
+    </footer>`;
+}
+
+function odswiezLicznikPdf() {
+  document.querySelectorAll('[data-pdf]').forEach((el) => { el.checked = wyborPdf.wybrane.has(el.dataset.pdf); });
+  const b = document.getElementById('przyciskPdf');
+  if (b) b.textContent = `📄 Utwórz PDF (${wyborPdf.wybrane.size})`;
+}
+
+async function generujPdf(protokoly, nazwaPliku) {
+  const zBrakami = protokoly.filter((p) => !P.postep(p).gotowy).length;
+  if (zBrakami && !confirm(`${zBrakami} z ${protokoly.length} protokołów ma braki lub pola do sprawdzenia. Utworzyć PDF mimo to?`)) return;
+  pokazKomunikat('Tworzę PDF…');
+  const nazwyGrup = {};
+  for (const gid of new Set(protokoly.map((p) => p.grupaId))) {
+    nazwyGrup[gid] = ((await baza.pobierz('grupy', gid)) || {}).nazwa || '';
+  }
+  try {
+    const { utworzPdf } = await import('./pdf.js');
+    const bajty = await utworzPdf(protokoly.map((p) => ({ protokol: p, obiekt: nazwyGrup[p.grupaId] })));
+    pokazGotowyPdf(new File([bajty], nazwaPliku, { type: 'application/pdf' }));
+  } catch (e) {
+    console.error(e);
+    alert('Nie udało się utworzyć PDF: ' + e.message);
+  }
+}
+
+function pokazGotowyPdf(plik) {
+  const adres = URL.createObjectURL(plik);
+  const moznaUdostepnic = navigator.canShare && navigator.canShare({ files: [plik] });
+  const okno = document.createElement('div');
+  okno.className = 'okno-tlo';
+  okno.innerHTML = `<div class="okno">
+    <h3>✓ PDF gotowy</h3>
+    <p class="info">${h(plik.name)} · ${Math.max(1, Math.round(plik.size / 1024))} KB</p>
+    <a class="duzy glowny przycisk-link" href="${adres}" download="${h(plik.name)}" target="_blank">💾 Otwórz / zapisz</a>
+    ${moznaUdostepnic ? '<button class="duzy" data-okno="udostepnij">📤 Udostępnij (e-mail, WhatsApp…)</button>' : ''}
+    <button class="sredni" data-okno="zamknij">Zamknij</button>
+  </div>`;
+  okno.addEventListener('click', async (e) => {
+    const co = e.target.closest('[data-okno]');
+    if (e.target === okno || (co && co.dataset.okno === 'zamknij')) {
+      okno.remove();
+      setTimeout(() => URL.revokeObjectURL(adres), 60000);
+    } else if (co && co.dataset.okno === 'udostepnij') {
+      try { await navigator.share({ files: [plik], title: plik.name }); } catch (err) { /* anulowano */ }
+    }
+  });
+  document.body.appendChild(okno);
 }
 
 // ------------------------------------------------------------
@@ -439,6 +548,27 @@ async function nowaCentrala(przegladId, zmiany = {}) {
 }
 
 const akcje = {
+  pdfWszystkie(el) {
+    wyborPdf.wybrane = new Set(el.dataset.wartosc ? wyborPdf.protokoly.map((p) => p.id) : []);
+    odswiezLicznikPdf();
+  },
+  pdfPrzeglad(el) {
+    const ids = wyborPdf.protokoly.filter((p) => p.przegladId === el.dataset.id).map((p) => p.id);
+    const wszystkie = ids.every((i) => wyborPdf.wybrane.has(i));
+    ids.forEach((i) => (wszystkie ? wyborPdf.wybrane.delete(i) : wyborPdf.wybrane.add(i)));
+    odswiezLicznikPdf();
+  },
+  async utworzPdf() {
+    const wybrane = wyborPdf.protokoly.filter((p) => wyborPdf.wybrane.has(p.id));
+    if (!wybrane.length) return pokazKomunikat('Zaznacz co najmniej jeden protokół');
+    await generujPdf(wybrane, wyborPdf.nazwaPliku);
+  },
+  async pdfProtokolu() {
+    await zapiszTeraz();
+    const pg = await baza.pobierz('przeglady', biezacy.przegladId);
+    const grupa = await baza.pobierz('grupy', biezacy.grupaId);
+    await generujPdf([biezacy], nazwaPlikuPdf('Protokol', grupa.nazwa, biezacy.naglowek.oznaczenie || biezacy.naglowek.typ, pg.data));
+  },
   async zaloguj() {
     const imie = document.getElementById('logImie').value;
     const kod = document.getElementById('logKod').value;
@@ -642,9 +772,14 @@ ekran.addEventListener('input', (e) => {
   zapiszZaChwile();
 });
 
-// Zmiana daty przeglądu.
+// Zmiana daty przeglądu / zaznaczenie protokołu do PDF.
 ekran.addEventListener('change', async (e) => {
   const el = e.target;
+  if (el.dataset.pdf && wyborPdf) {
+    el.checked ? wyborPdf.wybrane.add(el.dataset.pdf) : wyborPdf.wybrane.delete(el.dataset.pdf);
+    odswiezLicznikPdf();
+    return;
+  }
   if (el.dataset.akcja === 'dataPrzegladu' && el.value) {
     const pg = await baza.pobierz('przeglady', el.dataset.id);
     pg.data = el.value;
@@ -673,6 +808,7 @@ async function pokaz() {
   else if (rodzaj === 'przeglad') await ekranPrzeglad(id);
   else if (rodzaj === 'protokol') await ekranProtokol(id);
   else if (rodzaj === 'uzytkownicy') { ostatniKod = null; await ekranUzytkownicy(); }
+  else if (rodzaj === 'pdf') await ekranWyboruPdf(id, location.hash.split('/')[3]);
   else await ekranGrupy();
 }
 

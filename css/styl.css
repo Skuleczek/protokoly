@@ -176,3 +176,16 @@ button.licznik { border: 0; color: #fff; font: inherit; font-size: 14px; min-hei
 .osoba .tytul { font-weight: 700; margin-bottom: 4px; }
 .osoba .opis { color: var(--szary); font-size: 15px; margin-bottom: 4px; }
 .osoba.zablokowana { opacity: .7; }
+
+/* Wybór protokołów do PDF */
+.wybor-pdf { flex-direction: row; align-items: center; gap: 14px; cursor: pointer; }
+.wybor-pdf input { width: 30px; height: 30px; flex: 0 0 30px; accent-color: var(--niebieski); }
+.wybor-pdf > span { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.maly-link { border: 0; background: none; color: var(--niebieski); text-decoration: underline; font-size: 15px; padding: 8px; }
+h2 { display: flex; align-items: center; justify-content: space-between; }
+
+/* Okno "PDF gotowy" */
+.okno-tlo { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 30; display: flex; align-items: flex-end; justify-content: center; }
+.okno { background: #fff; width: 100%; max-width: 560px; border-radius: 18px 18px 0 0; padding: 18px 16px; padding-bottom: max(18px, env(safe-area-inset-bottom)); }
+.okno h3 { margin: 0 0 4px; font-size: 22px; color: var(--zielony); }
+.dolny .duzy:only-child { flex: 1; }
