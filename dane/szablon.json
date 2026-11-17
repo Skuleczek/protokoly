@@ -1,0 +1,558 @@
+{
+ "nazwa": "Protokół kontroli centrali wentylacyjnej",
+ "firma": "\"FRAPOL\" - Serwis",
+ "wersja": 1,
+ "naglowek": [
+  {
+   "id": "typ",
+   "etykieta": "TYP CENTRALI"
+  },
+  {
+   "id": "nrFabr",
+   "etykieta": "NR. FABR."
+  },
+  {
+   "id": "rok",
+   "etykieta": "ROK PRODUKCJI"
+  },
+  {
+   "id": "obiekt",
+   "etykieta": "OBIEKT",
+   "zGrupy": true
+  },
+  {
+   "id": "oznaczenie",
+   "etykieta": "OZNACZENIE"
+  }
+ ],
+ "sekcje": [
+  {
+   "nr": "1",
+   "nazwa": "Sekcja wentylatora nawiewnego",
+   "skrot": "nawiew",
+   "pozytywna": "jest",
+   "negatywna": "brak",
+   "punkty": [
+    {
+     "nr": "1.1",
+     "nazwa": "Połączenia mechaniczne",
+     "typ": "wybor",
+     "pozytywna": "sprawne",
+     "negatywna": "niesprawne"
+    },
+    {
+     "nr": "1.2",
+     "nazwa": "Amortyzatory",
+     "typ": "wybor",
+     "pozytywna": "sprawne",
+     "negatywna": "niesprawne"
+    },
+    {
+     "nr": "1.3",
+     "nazwa": "Połączenia elektryczne",
+     "typ": "wybor",
+     "pozytywna": "sprawne",
+     "negatywna": "niesprawne"
+    },
+    {
+     "nr": "1.4",
+     "nazwa": "Zadziałanie presostatu wentylatora",
+     "typ": "wybor",
+     "pozytywna": "poprawne",
+     "negatywna": "zastrzeżenia",
+     "dodatkowe": {
+      "typ": "wartosc",
+      "etykieta": "nastawa"
+     }
+    },
+    {
+     "nr": "1.5",
+     "nazwa": "Łożyska silnika",
+     "typ": "wybor",
+     "pozytywna": "sprawne",
+     "negatywna": "niesprawne",
+     "dodatkowe": {
+      "typ": "zaznacz",
+      "etykieta": "do wymiany"
+     }
+    },
+    {
+     "nr": "1.6",
+     "nazwa": "Pobór prądu / Prąd znamionowy silnika [A]",
+     "typ": "liczby",
+     "pola": [
+      {
+       "id": "pobor",
+       "etykieta": "Pobór prądu [A]"
+      },
+      {
+       "id": "znamionowy",
+       "etykieta": "Prąd znamionowy [A]"
+      },
+      {
+       "id": "bezpiecznik",
+       "etykieta": "nastawa bezpiecznika [A]"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "nr": "2",
+   "nazwa": "Sekcja wentylatora wywiewnego",
+   "skrot": "wywiew",
+   "pozytywna": "jest",
+   "negatywna": "brak",
+   "punkty": [
+    {
+     "nr": "2.1",
+     "nazwa": "Połączenia mechaniczne",
+     "typ": "wybor",
+     "pozytywna": "sprawne",
+     "negatywna": "niesprawne"
+    },
+    {
+     "nr": "2.2",
+     "nazwa": "Amortyzatory",
+     "typ": "wybor",
+     "pozytywna": "sprawne",
+     "negatywna": "niesprawne"
+    },
+    {
+     "nr": "2.3",
+     "nazwa": "Połączenia elektryczne",
+     "typ": "wybor",
+     "pozytywna": "sprawne",
+     "negatywna": "niesprawne"
+    },
+    {
+     "nr": "2.4",
+     "nazwa": "Zadziałanie presostatu wentylatora",
+     "typ": "wybor",
+     "pozytywna": "poprawne",
+     "negatywna": "zastrzeżenia",
+     "dodatkowe": {
+      "typ": "wartosc",
+      "etykieta": "nastawa"
+     }
+    },
+    {
+     "nr": "2.5",
+     "nazwa": "Łożyska silnika",
+     "typ": "wybor",
+     "pozytywna": "sprawne",
+     "negatywna": "niesprawne",
+     "dodatkowe": {
+      "typ": "zaznacz",
+      "etykieta": "do wymiany"
+     }
+    },
+    {
+     "nr": "2.6",
+     "nazwa": "Pobór prądu / Prąd znamionowy silnika [A]",
+     "typ": "liczby",
+     "pola": [
+      {
+       "id": "pobor",
+       "etykieta": "Pobór prądu [A]"
+      },
+      {
+       "id": "znamionowy",
+       "etykieta": "Prąd znamionowy [A]"
+      },
+      {
+       "id": "bezpiecznik",
+       "etykieta": "nastawa bezpiecznika [A]"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "nr": "3",
+   "nazwa": "Przepustnice i komora mieszania",
+   "skrot": "przepustnice",
+   "pozytywna": "jest",
+   "negatywna": "brak",
+   "punkty": [
+    {
+     "nr": "3.1",
+     "nazwa": "Przepustnice powietrza zewnętrznego",
+     "typ": "wybor",
+     "pozytywna": "sprawne",
+     "negatywna": "niesprawne"
+    },
+    {
+     "nr": "3.2",
+     "nazwa": "Przepustnice powietrza wyrzutowego",
+     "typ": "wybor",
+     "pozytywna": "sprawne",
+     "negatywna": "niesprawne"
+    },
+    {
+     "nr": "3.3",
+     "nazwa": "Przepustnice powietrza recyrkulacyjnego",
+     "typ": "wybor",
+     "pozytywna": "sprawne",
+     "negatywna": "niesprawne"
+    }
+   ]
+  },
+  {
+   "nr": "4",
+   "nazwa": "Sekcja filtrów wstępnych (nawiew)",
+   "skrot": "filtry wstępne",
+   "pozytywna": "jest",
+   "negatywna": "brak",
+   "punkty": [
+    {
+     "nr": "4.1",
+     "nazwa": "Stan filtrów",
+     "typ": "wybor",
+     "pozytywna": "czyste",
+     "negatywna": "zanieczyszczone",
+     "dodatkowe": {
+      "typ": "zaznacz",
+      "etykieta": "do wymiany"
+     }
+    },
+    {
+     "nr": "4.2",
+     "nazwa": "Kontrola działania presostatu",
+     "typ": "wybor",
+     "pozytywna": "poprawne",
+     "negatywna": "zastrzeżenia",
+     "dodatkowe": {
+      "typ": "wartosc",
+      "etykieta": "nastawa"
+     }
+    },
+    {
+     "nr": "4.3",
+     "nazwa": "Wymiana filtrów",
+     "typ": "wybor",
+     "pozytywna": "tak",
+     "negatywna": "nie"
+    }
+   ]
+  },
+  {
+   "nr": "5",
+   "nazwa": "Sekcja filtrów wtórnych (nawiew)",
+   "skrot": "filtry wtórne",
+   "pozytywna": "jest",
+   "negatywna": "brak",
+   "punkty": [
+    {
+     "nr": "5.1",
+     "nazwa": "Stan filtrów",
+     "typ": "wybor",
+     "pozytywna": "czyste",
+     "negatywna": "zanieczyszczone",
+     "dodatkowe": {
+      "typ": "zaznacz",
+      "etykieta": "do wymiany"
+     }
+    },
+    {
+     "nr": "5.2",
+     "nazwa": "Kontrola działania presostatu",
+     "typ": "wybor",
+     "pozytywna": "poprawne",
+     "negatywna": "zastrzeżenia",
+     "dodatkowe": {
+      "typ": "wartosc",
+      "etykieta": "nastawa"
+     }
+    },
+    {
+     "nr": "5.3",
+     "nazwa": "Wymiana filtrów",
+     "typ": "wybor",
+     "pozytywna": "tak",
+     "negatywna": "nie"
+    }
+   ]
+  },
+  {
+   "nr": "6",
+   "nazwa": "Sekcja filtrów (wywiew)",
+   "skrot": "filtry wywiew",
+   "pozytywna": "jest",
+   "negatywna": "brak",
+   "punkty": [
+    {
+     "nr": "6.1",
+     "nazwa": "Stan filtrów",
+     "typ": "wybor",
+     "pozytywna": "czyste",
+     "negatywna": "zanieczyszczone",
+     "dodatkowe": {
+      "typ": "zaznacz",
+      "etykieta": "do wymiany"
+     }
+    },
+    {
+     "nr": "6.2",
+     "nazwa": "Kontrola działania presostatu",
+     "typ": "wybor",
+     "pozytywna": "poprawne",
+     "negatywna": "zastrzeżenia",
+     "dodatkowe": {
+      "typ": "wartosc",
+      "etykieta": "nastawa"
+     }
+    },
+    {
+     "nr": "6.3",
+     "nazwa": "Wymiana filtrów",
+     "typ": "wybor",
+     "pozytywna": "tak",
+     "negatywna": "nie"
+    }
+   ]
+  },
+  {
+   "nr": "7",
+   "nazwa": "Sekcja nagrzewnicy wodnej",
+   "skrot": "nagrzewnica wodna",
+   "pozytywna": "jest",
+   "negatywna": "brak",
+   "punkty": [
+    {
+     "nr": "7.1",
+     "nazwa": "Stan bloku lamelowego",
+     "typ": "wybor",
+     "pozytywna": "czysty",
+     "negatywna": "zanieczyszczony",
+     "dodatkowe": {
+      "typ": "zaznacz",
+      "etykieta": "do wyczyszczenia"
+     }
+    },
+    {
+     "nr": "7.2",
+     "nazwa": "Zadziałanie FROSTA",
+     "typ": "wybor",
+     "pozytywna": "poprawne",
+     "negatywna": "zastrzeżenia",
+     "dodatkowe": {
+      "typ": "wartosc",
+      "etykieta": "nastawa"
+     }
+    },
+    {
+     "nr": "7.3",
+     "nazwa": "Poprawność działania instalacji zasilania",
+     "typ": "wybor",
+     "pozytywna": "poprawne",
+     "negatywna": "zastrzeżenia"
+    }
+   ]
+  },
+  {
+   "nr": "8",
+   "nazwa": "Sekcja nagrzewnicy elektrycznej",
+   "skrot": "nagrzewnica elektryczna",
+   "pozytywna": "jest",
+   "negatywna": "brak",
+   "punkty": [
+    {
+     "nr": "8.1",
+     "nazwa": "Stan grzałek",
+     "typ": "wybor",
+     "pozytywna": "sprawne",
+     "negatywna": "niesprawne",
+     "dodatkowe": {
+      "typ": "zaznacz",
+      "etykieta": "do wymiany"
+     }
+    },
+    {
+     "nr": "8.2",
+     "nazwa": "Połączenia elektryczne",
+     "typ": "wybor",
+     "pozytywna": "sprawne",
+     "negatywna": "niesprawne"
+    },
+    {
+     "nr": "8.3",
+     "nazwa": "Pobór prądu / Prąd znamionowy grzałek [A]",
+     "typ": "liczby",
+     "pola": [
+      {
+       "id": "pobor",
+       "etykieta": "Pobór prądu [A]"
+      },
+      {
+       "id": "znamionowy",
+       "etykieta": "Prąd znamionowy [A]"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "nr": "9",
+   "nazwa": "Sekcja chłodnicy",
+   "skrot": "chłodnica",
+   "pozytywna": "jest",
+   "negatywna": "brak",
+   "punkty": [
+    {
+     "nr": "9.1",
+     "nazwa": "Stan bloku lamelowego i odkraplacza",
+     "typ": "wybor",
+     "pozytywna": "czysty",
+     "negatywna": "zanieczyszczony",
+     "dodatkowe": {
+      "typ": "zaznacz",
+      "etykieta": "do wyczyszczenia"
+     }
+    },
+    {
+     "nr": "9.2",
+     "nazwa": "Poprawność działania instalacji zasilania",
+     "typ": "wybor",
+     "pozytywna": "poprawne",
+     "negatywna": "zastrzeżenia"
+    }
+   ]
+  },
+  {
+   "nr": "10",
+   "nazwa": "Sekcja wymiennika glikolowego",
+   "skrot": "wymiennik glikolowy",
+   "pozytywna": "jest",
+   "negatywna": "brak",
+   "punkty": [
+    {
+     "nr": "10.1",
+     "nazwa": "Stan bloków lamelowych",
+     "typ": "wybor",
+     "pozytywna": "czysty",
+     "negatywna": "zanieczyszczony",
+     "dodatkowe": {
+      "typ": "zaznacz",
+      "etykieta": "do wyczyszczenia"
+     }
+    },
+    {
+     "nr": "10.2",
+     "nazwa": "Poprawność działania instalacji zasilania",
+     "typ": "wybor",
+     "pozytywna": "poprawne",
+     "negatywna": "zastrzeżenia"
+    }
+   ]
+  },
+  {
+   "nr": "11",
+   "nazwa": "Sekcja wymiennika rotacyjnego",
+   "skrot": "rotor",
+   "pozytywna": "jest",
+   "negatywna": "brak",
+   "punkty": [
+    {
+     "nr": "11.1",
+     "nazwa": "Stan bloku lamelowego",
+     "typ": "wybor",
+     "pozytywna": "czysty",
+     "negatywna": "zanieczyszczony",
+     "dodatkowe": {
+      "typ": "zaznacz",
+      "etykieta": "do wyczyszczenia"
+     }
+    },
+    {
+     "nr": "11.2",
+     "nazwa": "Stan paska napędowego",
+     "typ": "wybor",
+     "pozytywna": "dobry",
+     "negatywna": "dostateczny",
+     "dodatkowe": {
+      "typ": "zaznacz",
+      "etykieta": "do wymiany"
+     }
+    },
+    {
+     "nr": "11.3",
+     "nazwa": "Połączenia elektryczne",
+     "typ": "wybor",
+     "pozytywna": "sprawne",
+     "negatywna": "niesprawne"
+    },
+    {
+     "nr": "11.4",
+     "nazwa": "Oprogramowanie przetwornicy częstotliwości",
+     "typ": "wybor",
+     "pozytywna": "sprawdzono",
+     "negatywna": "zastrzeżenia"
+    }
+   ]
+  },
+  {
+   "nr": "12",
+   "nazwa": "Sekcja wymiennika krzyżowego",
+   "skrot": "wymiennik krzyżowy",
+   "pozytywna": "jest",
+   "negatywna": "brak",
+   "punkty": [
+    {
+     "nr": "12.1",
+     "nazwa": "Stan bloku lamelowego i odkraplacza",
+     "typ": "wybor",
+     "pozytywna": "czysty",
+     "negatywna": "zanieczyszczony",
+     "dodatkowe": {
+      "typ": "zaznacz",
+      "etykieta": "do wyczyszczenia"
+     }
+    },
+    {
+     "nr": "12.2",
+     "nazwa": "Przepustnice",
+     "typ": "wybor",
+     "pozytywna": "sprawne",
+     "negatywna": "niesprawne"
+    }
+   ]
+  },
+  {
+   "nr": "13",
+   "nazwa": "Automatyka",
+   "skrot": "automatyka",
+   "pozytywna": "jest",
+   "negatywna": "brak",
+   "punkty": [
+    {
+     "nr": "13.1",
+     "nazwa": "Wskazania podzespołów",
+     "typ": "wybor",
+     "pozytywna": "poprawne",
+     "negatywna": "niepoprawne"
+    },
+    {
+     "nr": "13.2",
+     "nazwa": "Styki elektryczne",
+     "typ": "wybor",
+     "pozytywna": "poprawione",
+     "negatywna": "niepoprawione"
+    },
+    {
+     "nr": "13.3",
+     "nazwa": "Praca poprawna automatyki",
+     "typ": "wybor",
+     "pozytywna": "poprawna",
+     "negatywna": "niepoprawna"
+    }
+   ]
+  }
+ ],
+ "stopka": {
+  "podpis": "Data i podpis kontrolującego",
+  "terminPrzegladu": "Termin następnego przeglądu",
+  "informacja": "Częstotliwość wykonywania poszczególnych czynności serwisowych wg. Dokumentacji Techniczno-Ruchowej central wentylacyjnych.",
+  "uwagi": "Uwagi i zalecenia"
+ }
+}

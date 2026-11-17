@@ -1,0 +1,145 @@
+/* ============================================================
+   styl.css – wygląd aplikacji.
+   Duże przyciski (min. 56 px) – wygodne w rękawiczkach.
+   Jasne tło i mocny kontrast – czytelne w słońcu.
+   ============================================================ */
+
+:root {
+  --niebieski: #0b4f8a;
+  --zielony: #1b7a34;
+  --zielony-tlo: #dff3e4;
+  --czerwony: #b3261e;
+  --czerwony-tlo: #fbe2e0;
+  --szary: #5f6368;
+  --szary-tlo: #eceff1;
+  --tlo: #f4f6f8;
+  --karta: #ffffff;
+  --tekst: #111;
+  --ramka: #c5ccd3;
+  --zolty-tlo: #fff4c2;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 18px;
+  background: var(--tlo);
+  color: var(--tekst);
+}
+
+/* Górny pasek */
+.pasek {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; padding-top: max(8px, env(safe-area-inset-top));
+  background: var(--niebieski); color: #fff;
+}
+.pasek h1 { flex: 1; margin: 0; font-size: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wstecz {
+  color: #fff; text-decoration: none; font-size: 36px; line-height: 1;
+  min-width: 48px; min-height: 48px; display: flex; align-items: center; justify-content: center;
+}
+.licznik { font-size: 14px; background: rgba(255,255,255,.2); padding: 4px 8px; border-radius: 12px; white-space: nowrap; }
+.licznik.ok { background: var(--zielony); }
+
+main { padding: 16px; max-width: 760px; margin: 0 auto; }
+main.formularz { padding-bottom: 120px; }
+h2 { font-size: 18px; margin: 24px 0 8px; color: var(--szary); }
+.pusto { color: var(--szary); text-align: center; padding: 24px 8px; }
+
+/* Przyciski */
+button { font: inherit; cursor: pointer; }
+.duzy, .sredni {
+  display: block; width: 100%;
+  border: 2px solid var(--niebieski); border-radius: 12px;
+  background: #fff; color: var(--niebieski);
+  font-weight: 600; margin: 8px 0;
+}
+.duzy { min-height: 60px; font-size: 19px; }
+.sredni { min-height: 52px; font-size: 17px; }
+.glowny { background: var(--niebieski); color: #fff; }
+.niebezpieczny { border-color: var(--czerwony); color: var(--czerwony); }
+button:disabled { opacity: .45; }
+button:active { transform: scale(.98); }
+.opcje { margin-top: 32px; }
+
+/* Listy */
+.lista { list-style: none; margin: 0; padding: 0; }
+.lista.ukryta { display: none; }
+.wiersz {
+  display: flex; flex-direction: column; gap: 4px; width: 100%; text-align: left;
+  padding: 14px 16px; margin: 8px 0; min-height: 64px;
+  background: var(--karta); border: 1px solid var(--ramka); border-radius: 12px;
+  color: inherit; text-decoration: none;
+}
+.wiersz .tytul { font-weight: 600; }
+.wiersz .opis { color: var(--szary); font-size: 15px; }
+.plakietka { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 10px; font-size: 13px; font-weight: 600; }
+.plakietka.ok { background: var(--zielony-tlo); color: var(--zielony); }
+.plakietka.brak { background: var(--zolty-tlo); color: #6b5200; }
+
+/* Karty i pola */
+.karta { background: var(--karta); border: 1px solid var(--ramka); border-radius: 12px; padding: 12px; margin: 12px 0; }
+.podpowiedz { background: #e8f1fb; border-color: var(--niebieski); }
+.pole { display: block; font-size: 14px; font-weight: 600; color: var(--szary); margin: 8px 0; }
+.pole input, .pole textarea {
+  display: block; width: 100%; margin-top: 4px; padding: 12px;
+  font: inherit; font-size: 18px; color: var(--tekst);
+  border: 2px solid var(--ramka); border-radius: 10px; background: #fff;
+  min-height: 52px;
+}
+.pole input:focus, .pole textarea:focus { outline: none; border-color: var(--niebieski); }
+.pole input:disabled { background: var(--szary-tlo); }
+.pole.puste input { background: var(--zolty-tlo); }
+
+/* Sekcje protokołu */
+.sekcja { background: var(--karta); border: 1px solid var(--ramka); border-left: 6px solid var(--ramka); border-radius: 12px; padding: 12px; margin: 14px 0; }
+.sekcja.stan-jest { border-left-color: var(--zielony); }
+.sekcja.stan-brak { border-left-color: var(--szary); background: var(--szary-tlo); }
+.sekcja h3 { margin: 0 0 8px; font-size: 18px; }
+.sekcja .nr { color: var(--niebieski); }
+.info { color: var(--szary); margin: 8px 0 0; font-size: 15px; }
+
+.rzad { display: flex; gap: 8px; }
+.rzad > * { flex: 1; }
+.wybor {
+  min-height: 56px; padding: 6px 8px;
+  border: 2px solid var(--ramka); border-radius: 10px; background: #fff;
+  color: var(--tekst); font-size: 17px;
+}
+.wybor.ok-sekcja { border-color: var(--zielony); color: var(--zielony); font-weight: 700; flex: 1.4; }
+.wybor.poz.wybrany { background: var(--zielony); border-color: var(--zielony); color: #fff; font-weight: 700; }
+.wybor.neg.wybrany { background: var(--czerwony); border-color: var(--czerwony); color: #fff; font-weight: 700; }
+.wybor.brak.wybrany { background: var(--szary); border-color: var(--szary); color: #fff; font-weight: 700; }
+.wybor.dod { width: 100%; margin-top: 8px; text-align: left; padding-left: 14px; }
+.wybor.dod.wybrany { background: var(--czerwony-tlo); border-color: var(--czerwony); color: var(--czerwony); font-weight: 700; }
+
+.punkt { border-top: 1px solid var(--szary-tlo); padding: 10px 0 4px; margin-top: 8px; }
+.punkt-nazwa { margin-bottom: 6px; }
+.punkt.pusty .punkt-nazwa::after { content: " •"; color: #c79100; font-weight: 700; }
+.liczby { display: flex; gap: 8px; flex-wrap: wrap; }
+.liczby .pole { flex: 1 1 140px; margin: 0; }
+.pole.maly { font-size: 13px; }
+.nastawa { margin-top: 8px; }
+
+.flaga { background: var(--zolty-tlo); border: 1px solid #c79100; color: #5a4300; border-radius: 8px; padding: 6px 10px; margin-top: 6px; font-size: 15px; font-weight: 600; }
+
+/* Dolny pasek w formularzu */
+.dolny {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+  display: flex; gap: 8px; padding: 8px 12px;
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+  background: #fff; border-top: 1px solid var(--ramka);
+}
+.dolny .duzy { margin: 0; }
+.dolny .duzy:first-child { flex: 0 0 34%; }
+
+/* Krótki komunikat na dole ekranu */
+#komunikat {
+  position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%);
+  background: #222; color: #fff; padding: 10px 18px; border-radius: 20px;
+  opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 20; max-width: 90vw; text-align: center;
+}
+#komunikat.widoczny { opacity: .95; }
