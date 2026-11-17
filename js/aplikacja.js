@@ -5,10 +5,12 @@
 //   #/grupa/ID              – przeglądy w grupie
 //   #/przeglad/ID           – centrale w przeglądzie
 //   #/protokol/ID           – formularz protokołu
+//   #/uzytkownicy           – osoby i kody (tylko administrator)
 // ============================================================
 
-import { baza, noweId, poprosOTrwalyZapis } from './baza.js';
+import { baza, noweId, poprosOTrwalyZapis, przyBledzieZapisu } from './baza.js';
 import * as P from './protokol.js';
+import * as C from './chmura.js';
 
 const ekran = document.getElementById('app');
 
@@ -24,6 +26,19 @@ function pokazKomunikat(tekst) {
   el.classList.add('widoczny');
   clearTimeout(pokazKomunikat.t);
   pokazKomunikat.t = setTimeout(() => el.classList.remove('widoczny'), 2200);
+}
+
+// ------------------------------------------------------------
+// Uprawnienia (te same zasady pilnuje serwer w firestore.rules)
+// ------------------------------------------------------------
+const jestAdminem = () => !!(C.sesja && C.sesja.admin);
+const mozeUsunacProtokol = (p) => jestAdminem() || (C.sesja && p.autor === C.sesja.konto);
+
+function godzinaPL(ms) {
+  if (!ms) return '';
+  const d = new Date(ms);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 // ------------------------------------------------------------
@@ -63,6 +78,7 @@ async function ekranGrupy() {
   ekran.innerHTML = `
     <header class="pasek"><h1>Protokoły</h1></header>
     <main>
+      <div class="kto">👤 ${h(C.sesja.imie)}${jestAdminem() ? ' · administrator' : ''}</div>
       <button class="duzy glowny" data-akcja="nowaGrupa">＋ Nowa grupa (klient)</button>
       ${grupy.length ? '' : '<p class="pusto">Nie masz jeszcze żadnej grupy. Dodaj pierwszego klienta.</p>'}
       <ul class="lista">
@@ -72,6 +88,7 @@ async function ekranGrupy() {
             <span class="opis">${ile(g.id)} protokołów</span>
           </a></li>`).join('')}
       </ul>
+      ${jestAdminem() ? '<div class="opcje"><a class="sredni przycisk-link" href="#/uzytkownicy">👥 Użytkownicy i kody</a></div>' : ''}
     </main>`;
 }
 
@@ -102,7 +119,7 @@ async function ekranGrupa(id) {
       </ul>
       <div class="opcje">
         <button class="sredni" data-akcja="zmienNazweGrupy" data-id="${id}">✎ Zmień nazwę grupy</button>
-        <button class="sredni niebezpieczny" data-akcja="usunGrupe" data-id="${id}">🗑 Usuń grupę</button>
+        ${jestAdminem() ? `<button class="sredni niebezpieczny" data-akcja="usunGrupe" data-id="${id}">🗑 Usuń grupę</button>` : ''}
       </div>
     </main>`;
 }
@@ -143,12 +160,13 @@ async function ekranPrzeglad(id) {
           return `<li class="z-koszem"><a class="wiersz" href="#/protokol/${p.id}">
             <span class="tytul">${i + 1}. ${h(P.opisCentrali(p))}</span>
             <span class="opis">nr fabr. ${h(p.naglowek.nrFabr || '–')} ${plakietka}</span>
-          </a><button class="kosz" data-akcja="usunZListy" data-id="${p.id}" aria-label="Usuń protokół">🗑</button></li>`;
+            <span class="opis">👤 ${h(p.autorImie || '–')}</span>
+          </a>${mozeUsunacProtokol(p) ? `<button class="kosz" data-akcja="usunZListy" data-id="${p.id}" aria-label="Usuń protokół">🗑</button>` : ''}</li>`;
         }).join('')}
       </ul>
       <div class="opcje">
         <button class="sredni" disabled title="Etap 2">📄 Pobierz PDF (wkrótce)</button>
-        <button class="sredni niebezpieczny" data-akcja="usunPrzeglad" data-id="${id}">🗑 Usuń przegląd</button>
+        ${jestAdminem() ? `<button class="sredni niebezpieczny" data-akcja="usunPrzeglad" data-id="${id}">🗑 Usuń przegląd</button>` : ''}
       </div>
     </main>`;
 }
@@ -160,14 +178,19 @@ let biezacy = null;        // protokół otwarty w formularzu
 let czasomierzZapisu = null;
 
 function zapiszZaChwile() {
+  if (biezacy) biezacy.niezapisane = true;
   clearTimeout(czasomierzZapisu);
-  czasomierzZapisu = setTimeout(zapiszTeraz, 400);
+  czasomierzZapisu = setTimeout(zapiszTeraz, 1500);
 }
 async function zapiszTeraz() {
   clearTimeout(czasomierzZapisu);
-  if (!biezacy) return;
+  if (!biezacy || !biezacy.niezapisane) return;
+  biezacy.niezapisane = false;
   biezacy.zmieniono = Date.now();
-  await baza.zapisz('protokoly', biezacy);
+  biezacy.zmienil = C.sesja.konto;
+  biezacy.zmienilImie = C.sesja.imie;
+  const { niezapisane, ...doZapisu } = biezacy;
+  await baza.zapisz('protokoly', doZapisu);
 }
 
 function htmlFlagi(p, klucz) {
@@ -289,6 +312,7 @@ async function ekranProtokol(id) {
           <span class="opis">nr fabr. ${h(k.protokol.naglowek.nrFabr || '–')} · ${P.dataPL(k.przeglad.data)}</span></button>`).join('')}
       </div>` : ''}
 
+      <p class="autor">👤 Wykonał: <b>${h(p.autorImie || '–')}</b>${p.zmienilImie && p.zmieniono ? ` · ostatnia zmiana: ${h(p.zmienilImie)}, ${godzinaPL(p.zmieniono)}` : ''}</p>
       <section class="karta">
         ${pole('typ', 'TYP CENTRALI')}
         ${pole('nrFabr', 'NR. FABR.')}
@@ -315,7 +339,7 @@ async function ekranProtokol(id) {
         </label>
       </section>
 
-      <button class="sredni niebezpieczny" data-akcja="usunProtokol">🗑 Usuń ten protokół</button>
+      ${mozeUsunacProtokol(p) ? '<button class="sredni niebezpieczny" data-akcja="usunProtokol">🗑 Usuń ten protokół</button>' : ''}
     </main>
     <footer class="dolny">
       <button class="duzy" data-akcja="doListy">☰ Lista</button>
@@ -325,16 +349,149 @@ async function ekranProtokol(id) {
 }
 
 // ------------------------------------------------------------
+// EKRANY LOGOWANIA
+// ------------------------------------------------------------
+function ekranLogowania(stan, blad = '') {
+  const tresci = {
+    logowanie: `
+      <p>Wpisz swoje imię i nazwisko oraz <b>6-cyfrowy kod</b> otrzymany od administratora.</p>
+      <label class="pole">Imię i nazwisko <input id="logImie" type="text" autocomplete="name"></label>
+      <label class="pole">Kod <input id="logKod" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></label>
+      <button class="duzy glowny" data-akcja="zaloguj">Zaloguj</button>
+      <p class="info">Kod działa jeden raz. Na nowym telefonie lub komputerze poproś administratora o nowy kod.</p>`,
+    pierwszeKonto: `
+      <p><b>Pierwsze uruchomienie.</b> Baza jest pusta – zakładasz konto <b>administratora</b>.
+      Tylko administrator może dodawać kolejne osoby i wydawać im kody.</p>
+      <label class="pole">Twoje imię i nazwisko <input id="logImie" type="text" autocomplete="name"></label>
+      <button class="duzy glowny" data-akcja="zalozAdmina">Załóż konto administratora</button>`,
+    zablokowane: `<p>⛔ To konto zostało <b>zablokowane</b> przez administratora.</p>
+      <button class="duzy" data-akcja="sprobujPonownie">Sprawdź ponownie</button>`,
+    brakSieci: `<p>📶 Do <b>pierwszego</b> logowania na tym urządzeniu potrzebny jest internet.
+      Później aplikacja działa także bez zasięgu.</p>
+      <button class="duzy" data-akcja="sprobujPonownie">Spróbuj ponownie</button>`,
+  };
+  ekran.innerHTML = `
+    <header class="pasek"><h1>Protokoły – logowanie</h1></header>
+    <main>
+      ${blad ? `<div class="flaga">${h(blad)}</div>` : ''}
+      ${tresci[stan]}
+    </main>`;
+}
+
+async function startLogowania() {
+  let wynik;
+  try { wynik = await C.sprawdzLogowanie(); } catch (e) { wynik = { stan: 'brakSieci' }; }
+  if (wynik.stan === 'ok') return pokaz();
+  ekranLogowania(wynik.stan);
+}
+
+// ------------------------------------------------------------
+// EKRAN: użytkownicy (tylko administrator)
+// ------------------------------------------------------------
+let ostatniKod = null; // { imie, kod, wazneDo } – pokazywany po wygenerowaniu
+
+async function ekranUzytkownicy() {
+  if (!jestAdminem()) return idzDo('#/');
+  ekran.innerHTML = `<header class="pasek"><a class="wstecz" href="#/">‹</a><h1>Użytkownicy</h1></header>
+    <main><p class="pusto">Wczytywanie…</p></main>`;
+  let konta;
+  try { konta = await C.listaKont(); } catch (e) {
+    ekran.querySelector('main').innerHTML = '<p class="pusto">Lista użytkowników wymaga internetu.</p>';
+    return;
+  }
+  const dataG = (d) => godzinaPL(d.getTime());
+  ekran.innerHTML = `
+    <header class="pasek"><a class="wstecz" href="#/">‹</a><h1>Użytkownicy</h1></header>
+    <main>
+      ${ostatniKod ? `<div class="karta kod-karta">
+        Kod dla <b>${h(ostatniKod.imie)}</b>:
+        <div class="kod">${ostatniKod.kod.slice(0, 3)} ${ostatniKod.kod.slice(3)}</div>
+        Ważny do ${dataG(ostatniKod.wazneDo)}, działa jeden raz.<br>
+        Przekaż go tej osobie razem z adresem aplikacji. Przy logowaniu musi wpisać imię dokładnie: <b>${h(ostatniKod.imie)}</b>.
+        <button class="sredni" data-akcja="udostepnijKod">📤 Wyślij (SMS / komunikator)</button>
+      </div>` : ''}
+      <button class="duzy glowny" data-akcja="dodajOsobe">＋ Dodaj osobę</button>
+      <ul class="lista">
+        ${konta.map((k) => `<li class="karta osoba ${k.aktywny ? '' : 'zablokowana'}">
+          <div class="tytul">${h(k.imie)} ${k.admin ? '<span class="plakietka ok">administrator</span>' : ''}
+            ${k.aktywny ? '' : '<span class="plakietka brak">zablokowane</span>'}</div>
+          <div class="opis">Urządzenia: ${k.urzadzen}${k.kodyAktywne.length ? ` · czekające kody: ${k.kodyAktywne.map((x) => `${x.kod} (do ${dataG(x.wazneDo)})`).join(', ')}` : ''}</div>
+          <div class="rzad">
+            <button class="sredni" data-akcja="kodDla" data-id="${k.id}" data-imie="${h(k.imie)}">🔑 Nowy kod</button>
+            ${k.id === C.sesja.konto ? '' : `<button class="sredni ${k.aktywny ? 'niebezpieczny' : ''}" data-akcja="przelaczBlokade" data-id="${k.id}" data-aktywny="${k.aktywny ? '1' : ''}">${k.aktywny ? '⛔ Zablokuj' : '✓ Odblokuj'}</button>`}
+          </div>
+        </li>`).join('')}
+      </ul>
+      <p class="info">Zablokowanie odcina dostęp na wszystkich urządzeniach tej osoby. Jej protokoły zostają w bazie.</p>
+    </main>`;
+}
+
+// ------------------------------------------------------------
 // Obsługa dotknięć (jedno miejsce dla wszystkich przycisków)
 // ------------------------------------------------------------
 async function nowaCentrala(przegladId, zmiany = {}) {
   const przeglad = await baza.pobierz('przeglady', przegladId);
-  const p = P.nowyProtokol(przeglad, zmiany);
+  const p = P.nowyProtokol(przeglad, {
+    autor: C.sesja.konto, autorImie: C.sesja.imie, zmienil: C.sesja.konto, zmienilImie: C.sesja.imie, ...zmiany,
+  });
   await baza.zapisz('protokoly', p);
   idzDo(`#/protokol/${p.id}`);
 }
 
 const akcje = {
+  async zaloguj() {
+    const imie = document.getElementById('logImie').value;
+    const kod = document.getElementById('logKod').value;
+    if (!imie.trim() || kod.replace(/\D/g, '').length !== 6) return ekranLogowania('logowanie', 'Wpisz imię i nazwisko oraz 6 cyfr kodu.');
+    try {
+      const w = await C.zalogujKodem(imie, kod);
+      if (w.stan === 'ok') { pokazKomunikat(`Witaj, ${C.sesja.imie}!`); idzDo('#/'); return pokaz(); }
+      ekranLogowania(w.stan);
+    } catch (e) {
+      ekranLogowania('logowanie', navigator.onLine
+        ? 'Nieprawidłowe imię lub kod, albo kod wygasł / został już użyty.'
+        : 'Brak internetu – logowanie wymaga połączenia.');
+    }
+  },
+  async zalozAdmina() {
+    const imie = document.getElementById('logImie').value;
+    if (!imie.trim()) return;
+    try {
+      await C.zalozPierwszeKonto(imie);
+      idzDo('#/'); pokaz();
+    } catch (e) {
+      ekranLogowania('logowanie', 'Konto administratora już istnieje. Zaloguj się kodem.');
+    }
+  },
+  sprobujPonownie() { startLogowania(); },
+  async dodajOsobe() {
+    const imie = prompt('Imię i nazwisko nowej osoby (np. „Jan Kowalski”):');
+    if (!imie || !imie.trim()) return;
+    try {
+      const id = await C.dodajKonto(imie);
+      const k = await C.nowyKod(id);
+      ostatniKod = { imie: imie.trim(), ...k };
+    } catch (e) { alert(e.message || 'Nie udało się dodać osoby (potrzebny internet).'); }
+    ekranUzytkownicy();
+  },
+  async kodDla(el) {
+    try {
+      const k = await C.nowyKod(el.dataset.id);
+      ostatniKod = { imie: el.dataset.imie, ...k };
+    } catch (e) { alert('Nie udało się utworzyć kodu (potrzebny internet).'); }
+    ekranUzytkownicy();
+  },
+  async przelaczBlokade(el) {
+    const blokuj = !!el.dataset.aktywny;
+    if (blokuj && !confirm('Zablokować tę osobę? Straci dostęp na wszystkich urządzeniach.')) return;
+    try { await C.ustawAktywne(el.dataset.id, !blokuj); } catch (e) { alert('Nie udało się (potrzebny internet).'); }
+    ekranUzytkownicy();
+  },
+  async udostepnijKod() {
+    const tekst = `Kod do aplikacji Protokoły: ${ostatniKod.kod}\nImię przy logowaniu: ${ostatniKod.imie}\nAdres: ${location.origin}${location.pathname}\nKod działa jeden raz, ważny do ${godzinaPL(ostatniKod.wazneDo.getTime())}.`;
+    if (navigator.share) { try { await navigator.share({ text: tekst }); } catch (e) { /* anulowano */ } }
+    else { try { await navigator.clipboard.writeText(tekst); pokazKomunikat('Skopiowano – wklej w SMS'); } catch (e) { alert(tekst); } }
+  },
   async nowaGrupa() {
     const nazwa = prompt('Nazwa klienta (grupy), np. „Budimex sp. z o. o.”:');
     if (!nazwa || !nazwa.trim()) return;
@@ -391,6 +548,7 @@ const akcje = {
     const zrodlo = await baza.pobierz('protokoly', el.dataset.zrodlo);
     biezacy.naglowek = { ...zrodlo.naglowek };
     if (!Object.keys(biezacy.sekcje).length) biezacy.sekcje = { ...zrodlo.sekcje };
+    biezacy.niezapisane = true;
     await zapiszTeraz();
     pokazKomunikat('Skopiowano dane centrali');
     pokaz();
@@ -398,6 +556,7 @@ const akcje = {
   async budowaJakPoprzednia(el) {
     const zrodlo = await baza.pobierz('protokoly', el.dataset.zrodlo);
     P.kopiujBudowe(biezacy, zrodlo);
+    biezacy.niezapisane = true;
     await zapiszTeraz();
     pokazKomunikat('Skopiowano jest/brak sekcji');
     pokaz();
@@ -501,21 +660,31 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) zapis
 // Przełączanie ekranów
 // ------------------------------------------------------------
 async function pokaz() {
+  if (!C.sesja) return startLogowania();
   // Wychodząc z protokołu zapamiętaj, że był już zapisany – przy powrocie braki będą wyróżnione.
-  if (biezacy && !location.hash.includes(biezacy.id)) biezacy.zapisany = true;
+  if (biezacy && !location.hash.includes(biezacy.id) && !biezacy.zapisany) {
+    biezacy.zapisany = true;
+    biezacy.niezapisane = true;
+  }
   await zapiszTeraz();
   const [rodzaj, id] = location.hash.replace(/^#\/?/, '').split('/');
   if (rodzaj !== 'protokol') biezacy = null;
   if (rodzaj === 'grupa') await ekranGrupa(id);
   else if (rodzaj === 'przeglad') await ekranPrzeglad(id);
   else if (rodzaj === 'protokol') await ekranProtokol(id);
+  else if (rodzaj === 'uzytkownicy') { ostatniKod = null; await ekranUzytkownicy(); }
   else await ekranGrupy();
 }
 
 window.addEventListener('hashchange', async () => { await pokaz(); window.scrollTo(0, 0); });
 
+przyBledzieZapisu((e) => {
+  console.error(e);
+  pokazKomunikat(e.code === 'permission-denied' ? '⛔ Brak uprawnień do tej zmiany' : '⚠ Błąd zapisu w chmurze');
+});
+
 (async function start() {
   await P.wczytajSzablon();
   poprosOTrwalyZapis();
-  await pokaz();
+  await startLogowania();
 })();

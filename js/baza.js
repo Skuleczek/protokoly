@@ -1,8 +1,11 @@
 // ============================================================
 // baza.js – zapis danych w pamięci telefonu (IndexedDB).
-// IndexedDB to baza danych wbudowana w każdą przeglądarkę.
-// Dane NIE wychodzą poza telefon.
+// Dwie części:
+//  - lokalna (IndexedDB w telefonie): ustawienia, klucze API, nagrania,
+//  - wspólna (Firebase): grupy, przeglądy, protokoły – widoczne dla zespołu.
 // ============================================================
+
+import { fs, F } from './chmura.js';
 
 const NAZWA_BAZY = 'protokoly';
 const WERSJA_BAZY = 1;
@@ -53,13 +56,65 @@ async function wykonaj(tabela, tryb, operacja) {
   });
 }
 
-export const baza = {
+// Tylko w tym telefonie: ustawienia (klucze API!) i kolejka nagrań.
+const lokalna = {
   pobierz: (tabela, id) => wykonaj(tabela, 'readonly', (t) => t.get(id)),
   wszystkie: (tabela) => wykonaj(tabela, 'readonly', (t) => t.getAll()),
   wgIndeksu: (tabela, indeks, wartosc) =>
     wykonaj(tabela, 'readonly', (t) => t.index(indeks).getAll(wartosc)),
   zapisz: (tabela, obiekt) => wykonaj(tabela, 'readwrite', (t) => t.put(obiekt)),
   usun: (tabela, id) => wykonaj(tabela, 'readwrite', (t) => t.delete(id)),
+};
+
+// ------------------------------------------------------------
+// Wspólna baza (Firebase): grupy, przeglądy, protokoły.
+// Zapis NIE czeka na serwer – trafia od razu do pamięci telefonu,
+// a Firebase sam wyśle go, gdy będzie internet.
+// ------------------------------------------------------------
+const WSPOLNE = ['grupy', 'przeglady', 'protokoly'];
+let bladZapisu = (e) => console.error(e);
+export function przyBledzieZapisu(fn) { bladZapisu = fn; }
+
+async function odczyt(zapytanie, jedenDokument) {
+  const zSerwera = jedenDokument ? F.getDoc : F.getDocs;
+  const zPamieci = jedenDokument ? F.getDocFromCache : F.getDocsFromCache;
+  if (!navigator.onLine) {
+    try { return await zPamieci(zapytanie); } catch (e) { return null; }
+  }
+  // Słaby zasięg: po 4 s bez odpowiedzi serwera bierzemy dane z pamięci telefonu.
+  const limit = new Promise((_, nie) => setTimeout(() => nie(new Error('wolno')), 4000));
+  try { return await Promise.race([zSerwera(zapytanie), limit]); } catch (e) {
+    try { return await zPamieci(zapytanie); } catch (e2) { return null; }
+  }
+}
+const lista = (wynik) => (wynik ? wynik.docs.map((d) => d.data()) : []);
+
+const wspolna = {
+  async pobierz(tabela, id) {
+    const d = await odczyt(F.doc(fs, tabela, id), true);
+    return d && d.exists() ? d.data() : undefined;
+  },
+  async wszystkie(tabela) { return lista(await odczyt(F.collection(fs, tabela))); },
+  async wgIndeksu(tabela, pole, wartosc) {
+    return lista(await odczyt(F.query(F.collection(fs, tabela), F.where(pole, '==', wartosc))));
+  },
+  zapisz(tabela, obiekt) {
+    F.setDoc(F.doc(fs, tabela, obiekt.id), obiekt).catch(bladZapisu);
+    return Promise.resolve();
+  },
+  usun(tabela, id) {
+    F.deleteDoc(F.doc(fs, tabela, id)).catch(bladZapisu);
+    return Promise.resolve();
+  },
+};
+
+const wybierz = (tabela) => (WSPOLNE.includes(tabela) ? wspolna : lokalna);
+export const baza = {
+  pobierz: (t, id) => wybierz(t).pobierz(t, id),
+  wszystkie: (t) => wybierz(t).wszystkie(t),
+  wgIndeksu: (t, i, w) => wybierz(t).wgIndeksu(t, i, w),
+  zapisz: (t, o) => wybierz(t).zapisz(t, o),
+  usun: (t, id) => wybierz(t).usun(t, id),
 };
 
 // Unikalny identyfikator nowego wpisu.

@@ -1,0 +1,3 @@
+Plik firebase.js zawiera bibliotekę Firebase JavaScript SDK (Google LLC),
+udostępnianą na licencji Apache License 2.0: https://www.apache.org/licenses/LICENSE-2.0
+Oryginalne informacje o licencjach znajdują się na końcu pliku firebase.js.

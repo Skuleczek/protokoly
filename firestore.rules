@@ -1,0 +1,106 @@
+rules_version = '2';
+
+// ============================================================
+// Reguły bezpieczeństwa bazy Firestore.
+// Wykonuje je serwer Google przy KAŻDYM odczycie i zapisie –
+// nie da się ich obejść z telefonu ani z przeglądarki.
+//
+// Wklejasz je w: Firebase → Firestore Database → Rules → Publish.
+// ============================================================
+
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    // ---------- pomocnicze ----------
+    function sciezka(kolekcja, id) { return /databases/$(db)/documents/$(kolekcja)/$(id); }
+    function zalogowany() { return request.auth != null; }
+    function maUrzadzenie() { return zalogowany() && exists(sciezka('urzadzenia', request.auth.uid)); }
+    function mojeKontoId() { return get(sciezka('urzadzenia', request.auth.uid)).data.konto; }
+    function mojeKonto() { return get(sciezka('konta', mojeKontoId())).data; }
+    // Członek = urządzenie przypisane do AKTYWNEGO konta.
+    function czlonek() { return maUrzadzenie() && mojeKonto().aktywny == true; }
+    function admin() { return czlonek() && mojeKonto().admin == true; }
+    function zalozono() { return exists(sciezka('konfiguracja', 'zalozono')); }
+
+    // ---------- konfiguracja (znacznik "pierwsze konto już założone") ----------
+    match /konfiguracja/zalozono {
+      allow get: if zalogowany();
+      // Tylko raz: przy zakładaniu pierwszego konta administratora.
+      allow create: if zalogowany() && !zalozono()
+        && getAfter(sciezka('urzadzenia', request.auth.uid)).data.konto != null;
+      allow update, delete: if false;
+    }
+
+    // ---------- konta osób ----------
+    match /konta/{kontoId} {
+      allow read: if admin() || (maUrzadzenie() && mojeKontoId() == kontoId);
+      allow write: if admin();
+      // Pierwsze konto administratora (tylko gdy baza jest pusta).
+      allow create: if zalogowany() && !zalozono()
+        && existsAfter(sciezka('konfiguracja', 'zalozono'))
+        && request.resource.data.admin == true
+        && request.resource.data.aktywny == true;
+    }
+
+    // ---------- jednorazowe kody (id dokumentu = "konto_kod") ----------
+    // Nikt poza administratorem nie może ich czytać ani wypisać.
+    match /kody/{kodId} {
+      allow read, create, update: if admin();
+      // Usunięcie (zużycie) przez nowe urządzenie – tylko w tej samej operacji,
+      // w której to urządzenie zostaje przypisane właśnie tym kodem.
+      allow delete: if admin() || (zalogowany()
+        && kodId == getAfter(sciezka('urzadzenia', request.auth.uid)).data.konto
+                    + '_' + getAfter(sciezka('urzadzenia', request.auth.uid)).data.kod);
+    }
+
+    // ---------- urządzenia (id dokumentu = identyfikator urządzenia) ----------
+    match /urzadzenia/{uid} {
+      allow read: if (zalogowany() && request.auth.uid == uid) || admin();
+      allow update: if false;
+      allow delete: if admin();
+
+      allow create: if zalogowany() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['konto', 'kod', 'opis', 'utworzono'])
+        && (
+          // a) zwykłe logowanie kodem od administratora
+          (
+            exists(sciezka('kody', request.resource.data.konto + '_' + request.resource.data.kod))
+            && get(sciezka('kody', request.resource.data.konto + '_' + request.resource.data.kod)).data.wazneDo > request.time
+            && !existsAfter(sciezka('kody', request.resource.data.konto + '_' + request.resource.data.kod))
+            && get(sciezka('konta', request.resource.data.konto)).data.aktywny == true
+          )
+          ||
+          // b) pierwsze uruchomienie – zakładanie konta administratora
+          (
+            !zalozono()
+            && existsAfter(sciezka('konfiguracja', 'zalozono'))
+            && getAfter(sciezka('konta', request.resource.data.konto)).data.admin == true
+          )
+        );
+    }
+
+    // ---------- dane: grupy, przeglądy, protokoły ----------
+    match /grupy/{id} {
+      allow read, create, update: if czlonek();
+      allow delete: if admin();
+    }
+    match /przeglady/{id} {
+      allow read, create, update: if czlonek();
+      allow delete: if admin();
+    }
+    match /protokoly/{id} {
+      allow read: if czlonek();
+      allow create: if czlonek() && request.resource.data.autor == mojeKontoId();
+      // Autora nie da się podmienić.
+      allow update: if czlonek() && request.resource.data.autor == resource.data.autor;
+      allow delete: if admin() || (czlonek() && resource.data.autor == mojeKontoId());
+    }
+
+    // ---------- zużycie AI (podgląd kosztów – etap 5) ----------
+    match /zuzycie/{id} {
+      allow create: if czlonek() && request.resource.data.konto == mojeKontoId();
+      allow read: if admin();
+      allow update, delete: if admin();
+    }
+  }
+}

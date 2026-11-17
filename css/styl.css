@@ -166,3 +166,13 @@ button.licznik { border: 0; color: #fff; font: inherit; font-size: 14px; min-hei
   flex: 0 0 60px; margin: 8px 0; border-radius: 12px; font-size: 24px;
   border: 2px solid var(--czerwony); background: #fff; color: var(--czerwony);
 }
+
+/* Logowanie, autor, użytkownicy */
+.kto { color: var(--szary); font-size: 15px; margin-bottom: 4px; }
+.autor { color: var(--szary); font-size: 15px; margin: 8px 0 0; }
+.przycisk-link { display: flex; align-items: center; justify-content: center; text-decoration: none; }
+.kod-karta { background: #e8f1fb; border-color: var(--niebieski); }
+.kod { font-size: 44px; font-weight: 800; letter-spacing: 6px; text-align: center; margin: 8px 0; color: var(--niebieski); font-variant-numeric: tabular-nums; }
+.osoba .tytul { font-weight: 700; margin-bottom: 4px; }
+.osoba .opis { color: var(--szary); font-size: 15px; margin-bottom: 4px; }
+.osoba.zablokowana { opacity: .7; }
