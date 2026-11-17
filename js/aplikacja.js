@@ -8,7 +8,8 @@
 //   #/uzytkownicy           – osoby i kody (tylko administrator)
 //   #/pdf/przeglad/ID, #/pdf/grupa/ID – wybór protokołów do PDF
 //   #/zdjecia               – zdjęcia -> jeden plik PDF
-//   #/ustawienia            – tryb testowy, klucze API (administrator)
+//   #/ustawienia            – tryb testowy (dla wszystkich)
+//   #/administrator, #/klucze – menu administratora, klucze API
 // ============================================================
 
 import { baza, noweId, poprosOTrwalyZapis, przyBledzieZapisu } from './baza.js';
@@ -123,7 +124,7 @@ async function ekranGrupy() {
       </ul>
       <div class="opcje">
         <a class="sredni przycisk-link" href="#/ustawienia">⚙ Ustawienia</a>
-        ${jestAdminem() ? '<a class="sredni przycisk-link" href="#/uzytkownicy">👥 Użytkownicy i kody</a>' : ''}
+        ${jestAdminem() ? '<a class="sredni przycisk-link" href="#/administrator">🛠 Administrator</a>' : ''}
       </div>
     </main>`;
 }
@@ -596,27 +597,51 @@ async function ostrzezeniaKluczy() {
   const teksty = [['OpenAI', k.openai && k.openaiWygasa], ['Anthropic', k.anthropic && k.anthropicWygasa]]
     .filter(([, data]) => data && dniDo(data) <= 14)
     .map(([nazwa, data]) => (dniDo(data) < 0
-      ? `⛔ Klucz ${nazwa} wygasł – nagrania/AI nie działają. Wygeneruj nowy klucz i wpisz go w Ustawieniach.`
-      : `⚠ Klucz ${nazwa} wygasa za ${dniDo(data)} dni (${P.dataPL(data)}) – wygeneruj nowy i wpisz w Ustawieniach.`));
+      ? `⛔ Klucz ${nazwa} wygasł – nagrania/AI nie działają. Wygeneruj nowy klucz i wpisz go w: Administrator → Klucze API.`
+      : `⚠ Klucz ${nazwa} wygasa za ${dniDo(data)} dni (${P.dataPL(data)}) – wygeneruj nowy i wpisz w: Administrator → Klucze API.`));
   const el = document.getElementById('ostrzezeniaKluczy');
-  if (el) el.innerHTML = teksty.map((x) => `<a class="flaga przycisk-link-flaga" href="#/ustawienia">${h(x)}</a>`).join('');
+  if (el) el.innerHTML = teksty.map((x) => `<a class="flaga przycisk-link-flaga" href="#/klucze">${h(x)}</a>`).join('');
 }
 
 // ------------------------------------------------------------
 // EKRAN: ustawienia
 // ------------------------------------------------------------
 async function ekranUstawienia() {
-  const klucze = jestAdminem() ? await N.pobierzKlucze(true) : {};
-  const ukryj = (k) => (k ? `zapisany (…${h(k.slice(-4))})` : 'brak');
   ekran.innerHTML = `
     <header class="pasek"><a class="wstecz" href="#/">‹</a><h1>Ustawienia</h1></header>
     <main>
       <section class="karta">
         <h3>Tryb testowy</h3>
-        <p class="info">Na tym urządzeniu nagrania i AI są udawane – możesz ćwiczyć bez żadnych kosztów.</p>
+        <p class="info">Na tym urządzeniu nagrania i AI są udawane – możesz ćwiczyć bez żadnych kosztów. Do prawdziwej pracy wyłącz.</p>
         <label class="przelacznik"><input type="checkbox" id="trybTestowy" ${N.trybTestowy() ? 'checked' : ''}> Tryb testowy włączony</label>
       </section>
-      ${jestAdminem() ? `<section class="karta">
+    </main>`;
+}
+
+// ------------------------------------------------------------
+// EKRANY ADMINISTRATORA: menu i klucze API
+// ------------------------------------------------------------
+function ekranAdministrator() {
+  if (!jestAdminem()) return idzDo('#/');
+  ekran.innerHTML = `
+    <header class="pasek"><a class="wstecz" href="#/">‹</a><h1>Administrator</h1></header>
+    <main>
+      <a class="duzy przycisk-link" href="#/uzytkownicy">👥 Użytkownicy i kody</a>
+      <a class="duzy przycisk-link" href="#/klucze">🔑 Klucze API</a>
+      <div id="ostrzezeniaKluczy"></div>
+      <p class="info">Wkrótce: 💰 koszty i zużycie (etap 5).</p>
+    </main>`;
+  ostrzezeniaKluczy();
+}
+
+async function ekranKlucze() {
+  if (!jestAdminem()) return idzDo('#/');
+  const klucze = await N.pobierzKlucze(true);
+  const ukryj = (k) => (k ? `zapisany (…${h(k.slice(-4))})` : 'brak');
+  ekran.innerHTML = `
+    <header class="pasek"><a class="wstecz" href="#/administrator">‹</a><h1>Klucze API</h1></header>
+    <main>
+      <section class="karta">
         <h3>🔑 Klucze API (dla całego zespołu)</h3>
         <p class="info">Klucze trafiają do wspólnej bazy – widzą je tylko zalogowane osoby z zespołu. Ustaw miesięczne limity wydatków w panelach OpenAI i Anthropic!</p>
         <label class="pole">Klucz OpenAI (transkrypcja) – ${ukryj(klucze.openai)}
@@ -642,7 +667,7 @@ async function ekranUstawienia() {
         <button class="sredni" data-akcja="sprawdzAnthropic">🔍 Sprawdź klucz Anthropic (bez kosztów)</button>
         <div id="wynikSprawdzenia"></div>
         <p class="info">Limity wydatków: platform.openai.com → Settings → Limits oraz console.anthropic.com → Settings → Limits.</p>
-      </section>` : ''}
+      </section>
     </main>`;
 }
 
@@ -863,7 +888,7 @@ let ostatniKod = null; // { imie, kod, wazneDo } – pokazywany po wygenerowaniu
 
 async function ekranUzytkownicy() {
   if (!jestAdminem()) return idzDo('#/');
-  ekran.innerHTML = `<header class="pasek"><a class="wstecz" href="#/">‹</a><h1>Użytkownicy</h1></header>
+  ekran.innerHTML = `<header class="pasek"><a class="wstecz" href="#/administrator">‹</a><h1>Użytkownicy</h1></header>
     <main><p class="pusto">Wczytywanie…</p></main>`;
   let konta;
   try { konta = await C.listaKont(); } catch (e) {
@@ -872,7 +897,7 @@ async function ekranUzytkownicy() {
   }
   const dataG = (d) => godzinaPL(d.getTime());
   ekran.innerHTML = `
-    <header class="pasek"><a class="wstecz" href="#/">‹</a><h1>Użytkownicy</h1></header>
+    <header class="pasek"><a class="wstecz" href="#/administrator">‹</a><h1>Użytkownicy</h1></header>
     <main>
       ${ostatniKod ? `<div class="karta kod-karta">
         Kod dla <b>${h(ostatniKod.imie)}</b>:
@@ -968,7 +993,7 @@ const akcje = {
     try {
       await N.zapiszKlucze(zmiany);
       pokazKomunikat('Zapisano ✓');
-      ekranUstawienia();
+      ekranKlucze();
       przetworzKolejke({ tezBledy: true }); // nagrania, które czekały na klucz
     } catch (e) { alert('Nie udało się zapisać (potrzebny internet).'); }
   },
@@ -1291,6 +1316,8 @@ async function pokaz() {
   else if (rodzaj === 'pdf') await ekranWyboruPdf(id, location.hash.split('/')[3]);
   else if (rodzaj === 'zdjecia') ekranZdjecia();
   else if (rodzaj === 'ustawienia') await ekranUstawienia();
+  else if (rodzaj === 'administrator') ekranAdministrator();
+  else if (rodzaj === 'klucze') await ekranKlucze();
   else { await ekranGrupy(); odswiezStanKolejki(); ostrzezeniaKluczy(); }
 }
 

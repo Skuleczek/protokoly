@@ -185,7 +185,7 @@ export async function wypelnijZNagran(p, transkrypcje, { klucz, model, slownik, 
     await new Promise((ok) => setTimeout(ok, 1200));
     return { wynik: JSON.parse(JSON.stringify(WYNIK_TESTOWY)), zuzycie: null };
   }
-  if (!klucz) throw new BladAI('Brak klucza Anthropic – administrator musi go wpisać w Ustawieniach.', { ponawiaj: false });
+  if (!klucz) throw new BladAI('Brak klucza Anthropic – administrator musi go wpisać (Administrator → Klucze API).', { ponawiaj: false });
 
   const klient = new Anthropic({ apiKey: klucz, dangerouslyAllowBrowser: true, maxRetries: 2 });
   const tresc = `Data kontroli: ${dataPL(p.dataKontroli) || 'nieznana'}
@@ -210,7 +210,7 @@ ${transkrypcje.map((t, i) => `${i + 1}. „${t.tekst}”`).join('\n')}`;
   } catch (e) {
     const s = e.status;
     const msg = (e.error && e.error.error && e.error.error.message) || e.message || '';
-    if (s === 401) throw new BladAI('Klucz Anthropic jest nieprawidłowy albo wygasł – administrator musi wpisać nowy w Ustawieniach.', { ponawiaj: false });
+    if (s === 401) throw new BladAI('Klucz Anthropic jest nieprawidłowy albo wygasł – administrator musi wpisać nowy (Administrator → Klucze API).', { ponawiaj: false });
     if (s === 403) throw new BladAI('Klucz Anthropic nie ma uprawnień do tego modelu.', { ponawiaj: false });
     if (s === 400 && /credit|balance|billing/i.test(msg)) throw new BladAI('Brak środków na koncie Anthropic – trzeba doładować.', { ponawiaj: false });
     if (s === 400 || s === 404) throw new BladAI(`Claude odrzucił zapytanie: ${msg}`, { ponawiaj: false });

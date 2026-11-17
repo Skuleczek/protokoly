@@ -148,7 +148,7 @@ async function wyslijDoOpenAI(wpis, klucz, model) {
   if (odp.ok) return (await odp.json()).text || '';
   let szczegoly = '';
   try { szczegoly = ((await odp.json()).error || {}).message || ''; } catch (e) { /* brak treści */ }
-  if (odp.status === 401) throw new BladTranskrypcji('Klucz OpenAI jest nieprawidłowy albo wygasł – administrator musi wpisać nowy w Ustawieniach.', { ponawiaj: false });
+  if (odp.status === 401) throw new BladTranskrypcji('Klucz OpenAI jest nieprawidłowy albo wygasł – administrator musi wpisać nowy (Administrator → Klucze API).', { ponawiaj: false });
   if (odp.status === 429) throw new BladTranskrypcji(/quota|billing|credit/i.test(szczegoly) ? 'Brak środków na koncie OpenAI – trzeba doładować.' : 'OpenAI: za dużo zapytań – spróbuję za chwilę.', { ponawiaj: !/quota|billing|credit/i.test(szczegoly) });
   if (odp.status === 400 || odp.status === 404) {
     const e = new BladTranskrypcji(`OpenAI odrzuciło nagranie: ${szczegoly || odp.status}`, { ponawiaj: false });
@@ -164,7 +164,7 @@ async function transkrybuj(wpis) {
     return { tekst: 'TRYB TESTOWY: Sekcja wentylatora nawiewnego sprawna, ale łożyska do wymiany, rozmiar 6205. Pobór prądu 3,2 ampera, znamionowy 4,1. Wywiew sprawny. Nagrzewnicy elektrycznej brak. Filtry wstępne wymienione. Następny przegląd maj 2027.', model: 'test' };
   }
   const klucze = await pobierzKlucze();
-  if (!klucze.openai) throw new BladTranskrypcji('Brak klucza OpenAI – administrator musi go wpisać w Ustawieniach.', { ponawiaj: false });
+  if (!klucze.openai) throw new BladTranskrypcji('Brak klucza OpenAI – administrator musi go wpisać (Administrator → Klucze API).', { ponawiaj: false });
   const model = klucze.modelTranskrypcji || MODEL_DOMYSLNY;
   try {
     return { tekst: await wyslijDoOpenAI(wpis, klucze.openai, model), model };
