@@ -96,6 +96,14 @@ service cloud.firestore {
       allow delete: if admin() || (czlonek() && resource.data.autor == mojeKontoId());
     }
 
+    // ---------- klucze API (OpenAI, Anthropic) – opcja A ----------
+    // Czytać mogą tylko zalogowani członkowie zespołu (aplikacja ich potrzebuje),
+    // zmieniać – tylko administrator. Obcy bez kodu nie odczyta ich nigdy.
+    match /sekrety/{id} {
+      allow read: if czlonek();
+      allow write: if admin();
+    }
+
     // ---------- zużycie AI (podgląd kosztów – etap 5) ----------
     match /zuzycie/{id} {
       allow create: if czlonek() && request.resource.data.konto == mojeKontoId();

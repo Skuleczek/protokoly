@@ -8,11 +8,13 @@
 //   #/uzytkownicy           – osoby i kody (tylko administrator)
 //   #/pdf/przeglad/ID, #/pdf/grupa/ID – wybór protokołów do PDF
 //   #/zdjecia               – zdjęcia -> jeden plik PDF
+//   #/ustawienia            – tryb testowy, klucze API (administrator)
 // ============================================================
 
 import { baza, noweId, poprosOTrwalyZapis, przyBledzieZapisu } from './baza.js';
 import * as P from './protokol.js';
 import * as C from './chmura.js';
+import * as N from './nagrania.js';
 
 const ekran = document.getElementById('app');
 
@@ -83,6 +85,7 @@ async function ekranGrupy() {
       <div class="kto">👤 ${h(C.sesja.imie)}${jestAdminem() ? ' · administrator' : ''}</div>
       <button class="duzy glowny" data-akcja="nowaGrupa">＋ Nowa grupa (klient)</button>
       <a class="duzy przycisk-link" href="#/zdjecia">🖼 Zdjęcia → PDF</a>
+      <div id="stanKolejki"></div>
       ${grupy.length ? '' : '<p class="pusto">Nie masz jeszcze żadnej grupy. Dodaj pierwszego klienta.</p>'}
       <ul class="lista">
         ${grupy.map((g) => `
@@ -91,7 +94,10 @@ async function ekranGrupy() {
             <span class="opis">${ile(g.id)} protokołów</span>
           </a></li>`).join('')}
       </ul>
-      ${jestAdminem() ? '<div class="opcje"><a class="sredni przycisk-link" href="#/uzytkownicy">👥 Użytkownicy i kody</a></div>' : ''}
+      <div class="opcje">
+        <a class="sredni przycisk-link" href="#/ustawienia">⚙ Ustawienia</a>
+        ${jestAdminem() ? '<a class="sredni przycisk-link" href="#/uzytkownicy">👥 Użytkownicy i kody</a>' : ''}
+      </div>
     </main>`;
 }
 
@@ -317,6 +323,7 @@ async function ekranProtokol(id) {
       </div>` : ''}
 
       <p class="autor">👤 Wykonał: <b>${h(p.autorImie || '–')}</b>${p.zmienilImie && p.zmieniono ? ` · ostatnia zmiana: ${h(p.zmienilImie)}, ${godzinaPL(p.zmieniono)}` : ''}</p>
+      <div id="nagrania"></div>
       <section class="karta">
         ${pole('typ', 'TYP CENTRALI')}
         ${pole('nrFabr', 'NR. FABR.')}
@@ -346,11 +353,144 @@ async function ekranProtokol(id) {
       <button class="sredni" data-akcja="pdfProtokolu">📄 PDF tego protokołu</button>
       ${mozeUsunacProtokol(p) ? '<button class="sredni niebezpieczny" data-akcja="usunProtokol">🗑 Usuń ten protokół</button>' : ''}
     </main>
-    <footer class="dolny">
-      <button class="duzy" data-akcja="doListy">☰ Lista</button>
+    <footer class="dolny trzy">
+      <button class="duzy" data-akcja="doListy" aria-label="Lista">☰</button>
+      <button class="duzy mikrofon" data-akcja="nagraj" aria-label="Nagraj">🎤</button>
       <button class="duzy glowny" data-akcja="nastepna">Zapisz i następna ➜</button>
     </footer>`;
   odswiezLicznik();
+  odswiezNagrania();
+}
+
+// ------------------------------------------------------------
+// NAGRANIA w protokole
+// ------------------------------------------------------------
+async function odswiezNagrania() {
+  const el = document.getElementById('nagrania');
+  if (!el || !biezacy) return;
+  const kolejka = await N.nagraniaProtokolu(biezacy.id);
+  const gotowe = biezacy.transkrypcje || [];
+  if (!kolejka.length && !gotowe.length) { el.innerHTML = ''; return; }
+  const czas = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
+  el.innerHTML = `<section class="karta nagrania">
+    <h3>🎙 Nagrania</h3>
+    ${kolejka.map((n) => `<div class="nagranie ${n.status}">
+      ${n.status === 'blad'
+        ? `⚠ ${h(n.blad)} <div class="rzad"><button class="sredni" data-akcja="ponowNagranie">↻ Ponów</button><button class="sredni niebezpieczny" data-akcja="usunNagranie" data-id="${n.id}">🗑 Usuń nagranie</button></div>`
+        : n.status === 'wysylanie' ? `⏳ Zamieniam mowę na tekst… (${czas(n.sekundy)})`
+        : navigator.onLine || N.trybTestowy() ? `⏳ Czeka na wysłanie (${czas(n.sekundy)})` : `📶 Brak internetu – nagranie (${czas(n.sekundy)}) czeka w telefonie i wyśle się samo`}
+    </div>`).join('')}
+    ${gotowe.map((tr) => `<div class="nagranie gotowe">
+      <div class="opis">${godzinaPL(tr.kiedy)} · ${h(tr.imie || '')} · ${czas(tr.sekundy || 0)}</div>
+      <div class="transkrypcja">„${h(tr.tekst)}”</div>
+    </div>`).join('')}
+  </section>`;
+}
+
+// Dopisuje gotową transkrypcję do protokołu (bez nadpisywania innych zmian).
+async function zapiszTranskrypcje(protokolId, wpis) {
+  if (biezacy && biezacy.id === protokolId) {
+    biezacy.transkrypcje = [...(biezacy.transkrypcje || []), wpis];
+    biezacy.niezapisane = true;
+    await zapiszTeraz();
+    odswiezNagrania();
+  } else {
+    C.F.updateDoc(C.F.doc(C.fs, 'protokoly', protokolId), { transkrypcje: C.F.arrayUnion(wpis) })
+      .catch((e) => console.error(e));
+  }
+}
+
+let czasomierzKolejki = null;
+async function przetworzKolejke(opcje) {
+  await N.przetworzKolejke(zapiszTranskrypcje, opcje);
+  odswiezStanKolejki();
+}
+async function odswiezStanKolejki() {
+  const ile = await N.ileWKolejce();
+  const el = document.getElementById('stanKolejki');
+  if (el) el.innerHTML = ile ? `<div class="flaga">🎙 Nagrania czekające na przetworzenie: ${ile}${navigator.onLine ? '' : ' (brak internetu)'}</div>` : '';
+  clearTimeout(czasomierzKolejki);
+  if (ile) czasomierzKolejki = setTimeout(() => przetworzKolejke(), 60000); // ponów za minutę
+}
+N.przyZmianieKolejki(({ protokolId }) => { if (biezacy && biezacy.id === protokolId) odswiezNagrania(); });
+window.addEventListener('online', () => przetworzKolejke());
+window.addEventListener('offline', () => { odswiezNagrania(); odswiezStanKolejki(); });
+
+// Ekran nagrywania (na całą stronę).
+let nagrywarka = null;
+async function rozpocznijNagranie() {
+  await zapiszTeraz();
+  const protokolId = biezacy.id;
+  nagrywarka = new N.Nagrywarka();
+  try {
+    await nagrywarka.start();
+  } catch (e) {
+    nagrywarka = null;
+    alert(e.name === 'NotAllowedError'
+      ? 'Brak zgody na mikrofon. Zezwól na mikrofon w ustawieniach przeglądarki dla tej strony.'
+      : `Nie udało się włączyć mikrofonu: ${e.message}`);
+    return;
+  }
+  const okno = document.createElement('div');
+  okno.className = 'nagrywanie';
+  okno.innerHTML = `<div class="kropka"></div>
+    <div class="czas" id="czasNagrania">0:00</div>
+    <p>Mów swobodnie – np. „nawiew sprawny, łożyska do wymiany, prąd 3,2 ampera…”</p>
+    <button class="duzy stop" data-n="stop">⏹ Zakończ nagranie</button>
+    <button class="sredni" data-n="anuluj">Anuluj (nie zapisuj)</button>`;
+  document.body.appendChild(okno);
+  const licznik = setInterval(() => {
+    const s = nagrywarka.sekundy();
+    document.getElementById('czasNagrania').textContent = `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  }, 250);
+  okno.addEventListener('click', async (e) => {
+    const co = e.target.closest('[data-n]');
+    if (!co) return;
+    clearInterval(licznik);
+    okno.remove();
+    if (co.dataset.n === 'anuluj') { nagrywarka.anuluj(); nagrywarka = null; return; }
+    const nagranie = await nagrywarka.stop();
+    nagrywarka = null;
+    if (nagranie.sekundy < 1 || !nagranie.blob.size) return pokazKomunikat('Nagranie za krótkie');
+    await N.dodajDoKolejki(protokolId, nagranie);
+    pokazKomunikat(navigator.onLine ? 'Nagranie zapisane – zamieniam na tekst…' : 'Nagranie zapisane w telefonie – wyśle się po powrocie internetu');
+    odswiezNagrania();
+    przetworzKolejke();
+  });
+}
+
+// ------------------------------------------------------------
+// EKRAN: ustawienia
+// ------------------------------------------------------------
+async function ekranUstawienia() {
+  const klucze = jestAdminem() ? await N.pobierzKlucze(true) : {};
+  const ukryj = (k) => (k ? `zapisany (…${h(k.slice(-4))})` : 'brak');
+  ekran.innerHTML = `
+    <header class="pasek"><a class="wstecz" href="#/">‹</a><h1>Ustawienia</h1></header>
+    <main>
+      <section class="karta">
+        <h3>Tryb testowy</h3>
+        <p class="info">Na tym urządzeniu nagrania i AI są udawane – możesz ćwiczyć bez żadnych kosztów.</p>
+        <label class="przelacznik"><input type="checkbox" id="trybTestowy" ${N.trybTestowy() ? 'checked' : ''}> Tryb testowy włączony</label>
+      </section>
+      ${jestAdminem() ? `<section class="karta">
+        <h3>🔑 Klucze API (dla całego zespołu)</h3>
+        <p class="info">Klucze trafiają do wspólnej bazy – widzą je tylko zalogowane osoby z zespołu. Ustaw miesięczne limity wydatków w panelach OpenAI i Anthropic!</p>
+        <label class="pole">Klucz OpenAI (transkrypcja) – ${ukryj(klucze.openai)}
+          <input type="password" id="kluczOpenai" placeholder="sk-… (wklej, aby zmienić)" autocomplete="off">
+        </label>
+        <label class="pole">Model transkrypcji
+          <input type="text" id="modelTranskrypcji" value="${h(klucze.modelTranskrypcji || N.MODEL_DOMYSLNY)}">
+        </label>
+        <label class="pole">Klucz Anthropic (Claude – etap 4) – ${ukryj(klucze.anthropic)}
+          <input type="password" id="kluczAnthropic" placeholder="sk-ant-… (wklej, aby zmienić)" autocomplete="off">
+        </label>
+        <button class="duzy glowny" data-akcja="zapiszKlucze">💾 Zapisz</button>
+        <button class="sredni" data-akcja="sprawdzOpenai">🔍 Sprawdź klucz OpenAI (bez kosztów)</button>
+        <div id="wynikSprawdzenia"></div>
+        <p class="info">Limity wydatków: platform.openai.com → Settings → Limits oraz console.anthropic.com → Settings → Limits.</p>
+      </section>` : ''}
+    </main>`;
 }
 
 // ------------------------------------------------------------
@@ -358,7 +498,9 @@ async function ekranProtokol(id) {
 // ------------------------------------------------------------
 let wyborPdf = null; // { protokoly, nazwaPliku, wybrane: Set }
 
-const nazwaPlikuPdf = (...czesci) => `${czesci.map((c) => C.idKonta(c)).filter(Boolean).join('_')}.pdf`;
+// Nazwa pliku: zwykłe spacje, bez myślników; usuwamy tylko znaki zakazane w Windows.
+const nazwaPlikuPdf = (...czesci) => `${czesci.map((c) => String(c ?? '').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim())
+  .filter(Boolean).join(' ')}.pdf`;
 
 async function ekranWyboruPdf(rodzaj, id) {
   let protokoly, przeglady, grupa;
@@ -377,10 +519,7 @@ async function ekranWyboruPdf(rodzaj, id) {
   // Kolejność w pliku: data przeglądu, potem kolejność dodania central.
   const kolejnosc = przeglady.map((x) => x.id);
   protokoly.sort((a, b) => kolejnosc.indexOf(a.przegladId) - kolejnosc.indexOf(b.przegladId) || a.utworzono - b.utworzono);
-  const nazwa = rodzaj === 'przeglad'
-    ? nazwaPlikuPdf('Protokoly', grupa.nazwa, przeglady[0].data)
-    : nazwaPlikuPdf('Protokoly', grupa.nazwa);
-  wyborPdf = { protokoly, nazwaPliku: nazwa, wybrane: new Set(protokoly.map((p) => p.id)) };
+  wyborPdf = { protokoly, przeglady, grupa, wybrane: new Set(protokoly.map((p) => p.id)) };
 
   const powrot = rodzaj === 'przeglad' ? `#/przeglad/${id}` : `#/grupa/${id}`;
   ekran.innerHTML = `
@@ -477,7 +616,7 @@ function ekranZdjecia() {
       <input type="file" id="wybierzZdjecia" accept="image/*" multiple hidden>
       <input type="file" id="zrobZdjecie" accept="image/*" capture="environment" hidden>
       <label class="pole">Nazwa pliku
-        <input type="text" id="nazwaZdjec" value="Zdjecia_${P.dataPL(P.dzisiaj()).replace(/\./g, '-')}">
+        <input type="text" id="nazwaZdjec" value="Zdjęcia ${P.dataPL(P.dzisiaj())}">
       </label>
       <div id="listaZdjec"></div>
     </main>
@@ -554,7 +693,7 @@ function ekranLogowania(stan, blad = '') {
 async function startLogowania() {
   let wynik;
   try { wynik = await C.sprawdzLogowanie(); } catch (e) { wynik = { stan: 'brakSieci' }; }
-  if (wynik.stan === 'ok') return pokaz();
+  if (wynik.stan === 'ok') { przetworzKolejke(); return pokaz(); }
   ekranLogowania(wynik.stan);
 }
 
@@ -612,6 +751,35 @@ async function nowaCentrala(przegladId, zmiany = {}) {
 }
 
 const akcje = {
+  nagraj() { rozpocznijNagranie(); },
+  async ponowNagranie() { await przetworzKolejke({ tezBledy: true }); odswiezNagrania(); },
+  async usunNagranie(el) {
+    if (!confirm('Usunąć to nagranie? Nie będzie można go już zamienić na tekst.')) return;
+    await N.usunNagranie(el.dataset.id);
+    odswiezNagrania(); odswiezStanKolejki();
+  },
+  async zapiszKlucze() {
+    const zmiany = { modelTranskrypcji: document.getElementById('modelTranskrypcji').value.trim() || N.MODEL_DOMYSLNY };
+    const o = document.getElementById('kluczOpenai').value.trim();
+    const a = document.getElementById('kluczAnthropic').value.trim();
+    if (o) zmiany.openai = o;
+    if (a) zmiany.anthropic = a;
+    try {
+      await N.zapiszKlucze(zmiany);
+      pokazKomunikat('Zapisano ✓');
+      ekranUstawienia();
+      przetworzKolejke({ tezBledy: true }); // nagrania, które czekały na klucz
+    } catch (e) { alert('Nie udało się zapisać (potrzebny internet).'); }
+  },
+  async sprawdzOpenai() {
+    const wpisany = document.getElementById('kluczOpenai').value.trim();
+    const klucz = wpisany || (await N.pobierzKlucze(true)).openai;
+    const wynik = document.getElementById('wynikSprawdzenia');
+    if (!klucz) { wynik.innerHTML = '<div class="flaga">Najpierw wklej klucz OpenAI.</div>'; return; }
+    wynik.innerHTML = '<p class="info">Sprawdzam…</p>';
+    const r = await N.sprawdzKluczOpenAI(klucz, document.getElementById('modelTranskrypcji').value.trim() || N.MODEL_DOMYSLNY);
+    wynik.innerHTML = `<div class="${r.ok ? 'karta podpowiedz' : 'flaga'}">${h(r.tekst)}</div>`;
+  },
   zdjDodaj() { document.getElementById('wybierzZdjecia').click(); },
   zdjAparat() { document.getElementById('zrobZdjecie').click(); },
   zdjPrzesun(el) {
@@ -634,7 +802,7 @@ const akcje = {
   async zdjPdf() {
     if (!zdjecia.length) return;
     const b = document.getElementById('przyciskZdjPdf');
-    const nazwa = (document.getElementById('nazwaZdjec').value.trim() || 'Zdjecia').replace(/[\\/:*?"<>|]+/g, '_');
+    const nazwa = (document.getElementById('nazwaZdjec').value.trim() || 'Zdjecia').replace(/[\\/:*?"<>|]+/g, ' ');
     b.disabled = true;
     try {
       const { zdjeciaDoPdf } = await import('./zdjecia.js');
@@ -660,13 +828,15 @@ const akcje = {
   async utworzPdf() {
     const wybrane = wyborPdf.protokoly.filter((p) => wyborPdf.wybrane.has(p.id));
     if (!wybrane.length) return pokazKomunikat('Zaznacz co najmniej jeden protokół');
-    await generujPdf(wybrane, wyborPdf.nazwaPliku);
+    // Data w nazwie: najnowszy przegląd spośród wybranych protokołów.
+    const daty = wyborPdf.przeglady.filter((pg) => wybrane.some((p) => p.przegladId === pg.id)).map((pg) => pg.data).sort();
+    await generujPdf(wybrane, nazwaPlikuPdf(wyborPdf.grupa.nazwa, P.dataPL(daty[daty.length - 1])));
   },
   async pdfProtokolu() {
     await zapiszTeraz();
     const pg = await baza.pobierz('przeglady', biezacy.przegladId);
     const grupa = await baza.pobierz('grupy', biezacy.grupaId);
-    await generujPdf([biezacy], nazwaPlikuPdf('Protokol', grupa.nazwa, biezacy.naglowek.oznaczenie || biezacy.naglowek.typ, pg.data));
+    await generujPdf([biezacy], nazwaPlikuPdf(grupa.nazwa, biezacy.naglowek.oznaczenie || biezacy.naglowek.typ, P.dataPL(pg.data)));
   },
   async zaloguj() {
     const imie = document.getElementById('logImie').value;
@@ -874,6 +1044,11 @@ ekran.addEventListener('input', (e) => {
 // Zmiana daty przeglądu / zaznaczenie protokołu do PDF.
 ekran.addEventListener('change', async (e) => {
   const el = e.target;
+  if (el.id === 'trybTestowy') {
+    N.ustawTrybTestowy(el.checked);
+    pokazKomunikat(el.checked ? 'Tryb testowy włączony – bez kosztów' : 'Tryb testowy wyłączony');
+    return;
+  }
   if ((el.id === 'wybierzZdjecia' || el.id === 'zrobZdjecie') && el.files.length) {
     dodajZdjecia(el.files);
     el.value = '';
@@ -914,7 +1089,8 @@ async function pokaz() {
   else if (rodzaj === 'uzytkownicy') { ostatniKod = null; await ekranUzytkownicy(); }
   else if (rodzaj === 'pdf') await ekranWyboruPdf(id, location.hash.split('/')[3]);
   else if (rodzaj === 'zdjecia') ekranZdjecia();
-  else await ekranGrupy();
+  else if (rodzaj === 'ustawienia') await ekranUstawienia();
+  else { await ekranGrupy(); odswiezStanKolejki(); }
 }
 
 window.addEventListener('hashchange', async () => { await pokaz(); window.scrollTo(0, 0); });

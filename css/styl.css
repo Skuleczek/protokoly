@@ -201,3 +201,30 @@ h2 { display: flex; align-items: center; justify-content: space-between; }
 .zdj-przyciski button + button { border-left: 1px solid var(--ramka); }
 .zdj-przyciski button[data-akcja=zdjUsun] { color: var(--czerwony); }
 .zdj-przyciski button:disabled { color: var(--ramka); }
+
+/* Dolny pasek z mikrofonem */
+.dolny.trzy .duzy:first-child { flex: 0 0 18%; }
+.dolny.trzy .mikrofon { flex: 0 0 24%; background: var(--czerwony); border-color: var(--czerwony); color: #fff; font-size: 28px; }
+
+/* Ekran nagrywania */
+.nagrywanie {
+  position: fixed; inset: 0; z-index: 40; background: #111; color: #fff;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px; text-align: center;
+}
+.nagrywanie .kropka { width: 110px; height: 110px; border-radius: 50%; background: #e53935; animation: puls 1.2s infinite; }
+@keyframes puls { 0% { transform: scale(.9); opacity: 1; } 70% { transform: scale(1.1); opacity: .6; } 100% { transform: scale(.9); opacity: 1; } }
+.nagrywanie .czas { font-size: 56px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.nagrywanie p { color: #ccc; max-width: 420px; }
+.nagrywanie .duzy.stop { max-width: 420px; min-height: 84px; font-size: 24px; background: #fff; color: #111; border-color: #fff; }
+.nagrywanie .sredni { max-width: 420px; background: transparent; color: #ccc; border-color: #555; }
+
+/* Nagrania w protokole */
+.nagrania h3 { margin: 0 0 8px; }
+.nagranie { border-top: 1px solid var(--szary-tlo); padding: 8px 0; }
+.nagranie.blad { color: var(--czerwony); font-weight: 600; }
+.nagranie .transkrypcja { font-style: italic; margin-top: 4px; }
+.nagranie .opis { color: var(--szary); font-size: 14px; }
+
+/* Przełącznik */
+.przelacznik { display: flex; align-items: center; gap: 12px; font-weight: 600; min-height: 48px; }
+.przelacznik input { width: 30px; height: 30px; accent-color: var(--niebieski); }
