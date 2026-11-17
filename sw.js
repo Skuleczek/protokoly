@@ -7,7 +7,7 @@
 // Dane (protokoły) NIE są tu zapisywane – tym zajmuje się Firebase.
 // ============================================================
 
-const WERSJA = '2026.11.18-0006'; // @wersja
+const WERSJA = '2026.11.18-0016'; // @wersja
 const PLIKI = [ // @pliki-start
   './',
   './css/styl.css',
@@ -23,12 +23,14 @@ const PLIKI = [ // @pliki-start
   './js/aplikacja.js',
   './js/baza.js',
   './js/chmura.js',
+  './js/edytor-zdjecia.js',
   './js/konfiguracja.js',
   './js/koszty.js',
   './js/nagrania.js',
   './js/pdf.js',
   './js/protokol.js',
   './js/pwa.js',
+  './js/skaner.js',
   './js/testy-ai.js',
   './js/wersja.js',
   './js/zdjecia.js',

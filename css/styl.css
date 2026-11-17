@@ -269,3 +269,34 @@ h2 { display: flex; align-items: center; justify-content: space-between; }
 .kroki { padding-left: 22px; margin: 6px 0; }
 .kroki li { margin: 8px 0; line-height: 1.4; }
 .ikona-ios { display: inline-block; border: 2px solid currentColor; border-radius: 4px; padding: 0 4px; font-size: 13px; }
+
+/* Skaner: wybór filtra i miniatury */
+.chipy { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.chip { min-height: 46px; padding: 0 14px; border: 2px solid var(--ramka); border-radius: 23px; background: #fff; font-size: 16px; color: var(--tekst); }
+.chip.wybrany { background: var(--niebieski); border-color: var(--niebieski); color: #fff; font-weight: 700; }
+.zdj-podglad { display: block; position: relative; width: 100%; padding: 0; border: 0; background: none; }
+.zdj-edytuj { position: absolute; right: 6px; bottom: 6px; background: rgba(0,0,0,.6); color: #fff; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+
+/* Edytor zdjęcia */
+.edytor { position: fixed; inset: 0; z-index: 60; background: #111; color: #fff; display: flex; flex-direction: column; touch-action: none; user-select: none; }
+.e-gora { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px; padding-top: max(8px, env(safe-area-inset-top)); }
+.e-gora span { font-weight: 600; }
+.e-gora button { min-height: 48px; padding: 0 16px; border-radius: 10px; border: 2px solid #555; background: transparent; color: #fff; font-size: 17px; }
+.e-gora .e-gotowe { background: var(--zielony); border-color: var(--zielony); font-weight: 800; }
+.e-obszar { position: relative; flex: 1; overflow: hidden; }
+.e-obraz, .e-podglad { position: absolute; }
+.e-ramka { position: absolute; left: 0; top: 0; pointer-events: none; }
+.e-ramka polygon { fill: rgba(46, 160, 67, .18); stroke: #2ea043; stroke-width: 3; }
+.e-uchwyt { position: absolute; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%; border: 4px solid #2ea043; background: rgba(255,255,255,.25); touch-action: none; }
+.e-uchwyt.przeciagany { background: rgba(46,160,67,.45); }
+.e-lupa { display: none; position: absolute; top: 12px; right: 12px; width: 140px; height: 140px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 4px 16px rgba(0,0,0,.6); pointer-events: none; }
+.e-podglad { display: none; background: #fff; }
+.edytor.tryb-podglad .e-podglad { display: block; }
+.edytor.tryb-podglad .e-obraz, .edytor.tryb-podglad .e-ramka, .edytor.tryb-podglad .e-uchwyt { display: none; }
+.e-dol { padding: 8px; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+.e-narzedzia { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.e-narzedzia button { min-height: 54px; border-radius: 10px; border: 2px solid #555; background: #222; color: #fff; font-size: 16px; }
+.e-filtry { display: flex; gap: 6px; overflow-x: auto; margin-top: 8px; padding-bottom: 2px; }
+.e-filtry button { flex: 0 0 auto; min-height: 46px; padding: 0 14px; border-radius: 23px; border: 2px solid #555; background: #222; color: #fff; font-size: 15px; }
+.e-filtry button.wybrany { background: #fff; color: #111; font-weight: 800; border-color: #fff; }
+.e-info { color: #bbb; font-size: 14px; text-align: center; margin-top: 6px; min-height: 18px; }

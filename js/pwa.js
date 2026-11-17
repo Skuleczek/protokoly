@@ -4,6 +4,7 @@
 
 let zdarzenieInstalacji = null; // Android/Chrome: systemowe okienko „Zainstaluj”
 let oczekujacaWersja = null;    // nowa wersja czekająca na „Odśwież”
+let odswiezanie = false;        // użytkownik dotknął „Odśwież”
 const sluchacze = { aktualizacja: [], instalacja: [] };
 const powiadom = (typ) => sluchacze[typ].forEach((fn) => { try { fn(); } catch (e) { console.error(e); } });
 export const przyNowejWersji = (fn) => sluchacze.aktualizacja.push(fn);
@@ -52,10 +53,10 @@ export async function uruchom() {
     rejestracja = await navigator.serviceWorker.register('sw.js');
     obserwuj(rejestracja);
     // Po „Odśwież” nowa wersja przejmuje stronę – przeładowujemy raz.
-    let przeladowano = false;
+    // (Przy pierwszym uruchomieniu aplikacji NIE przeładowujemy – nic się nie zmieniło.)
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (przeladowano) return;
-      przeladowano = true;
+      if (!odswiezanie) return;
+      odswiezanie = false;
       window.location.reload();
     });
     // Sprawdzaj aktualizacje przy powrocie do aplikacji i co 30 minut.
@@ -84,6 +85,7 @@ export async function sprawdzAktualizacje() {
 
 // „Odśwież” – nowa wersja przejmuje stronę (potem automatyczne przeładowanie).
 export function zastosujNowaWersje() {
+  odswiezanie = true;
   if (oczekujacaWersja) oczekujacaWersja.postMessage('aktywuj');
   else window.location.reload();
 }

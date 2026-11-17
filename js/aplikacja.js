@@ -1020,6 +1020,13 @@ function pokazGotowyPlik(plik, tytul) {
 let zdjecia = []; // [{ id, plik, mini }] – kolejność = kolejność stron
 let dodawanieZdjec = Promise.resolve();
 
+// Ustawienia skanera zapamiętane na tym urządzeniu.
+const FILTRY_SKANERA = [['oryginal', 'Oryginał'], ['kontrast', 'Kontrast'], ['szarosc', 'Szarość'], ['dokument', 'Dokument'], ['czarnobialy', 'Czarno-biały']];
+function opcjaSkanera(nazwa, domyslna) { try { return localStorage.getItem(nazwa) ?? domyslna; } catch (e) { return domyslna; } }
+function ustawOpcjeSkanera(nazwa, w) { try { localStorage.setItem(nazwa, w); } catch (e) { /* trudno */ } }
+const autoKadrowanie = () => opcjaSkanera('skanerAuto', '1') === '1';
+const filtrDomyslny = () => opcjaSkanera('skanerFiltr', 'oryginal');
+
 function ekranZdjecia() {
   ekran.innerHTML = `
     <header class="pasek"><a class="wstecz" href="#/">‹</a><h1>Zdjęcia → PDF</h1></header>
@@ -1034,8 +1041,15 @@ function ekranZdjecia() {
         </label>
       </div>
       <label class="pole">Nazwa pliku
-        <input type="text" id="nazwaZdjec" value="Zdjęcia ${P.dataPL(P.dzisiaj())}">
+        <input type="text" id="nazwaZdjec" value="Zdjecia ${P.dataPL(P.dzisiaj())}">
       </label>
+      <section class="karta">
+        <label class="przelacznik"><input type="checkbox" id="skanerAuto" ${autoKadrowanie() ? 'checked' : ''}> 🪄 Automatycznie wykrywaj i prostuj kartkę</label>
+        <div class="pole maly">Filtr
+          <div class="chipy">${FILTRY_SKANERA.map(([id, nazwa]) => `<button class="chip ${filtrDomyslny() === id ? 'wybrany' : ''}" data-akcja="zdjFiltr" data-filtr="${id}">${nazwa}</button>`).join('')}</div>
+        </div>
+        <p class="info">Wybrany filtr dostają nowe zdjęcia i wszystkie już dodane. Dotknij zdjęcia, aby poprawić rogi kartki, obrócić je albo zmienić filtr tylko dla niego.</p>
+      </section>
       <div id="listaZdjec"></div>
     </main>
     <footer class="dolny">
@@ -1051,7 +1065,10 @@ function odswiezZdjecia() {
     <h2>Zdjęcia (${zdjecia.length}) <button class="maly-link" data-akcja="zdjWyczysc">usuń wszystkie</button></h2>
     <div class="siatka-zdjec">
       ${zdjecia.map((z, i) => `<div class="zdjecie">
-        ${z.mini ? `<img src="${z.mini}" alt="">` : `<div class="laduje">${z.mini === '' ? '⚠ brak podglądu' : '…'}</div>`}
+        <button class="zdj-podglad" data-akcja="zdjEdytuj" data-i="${i}" aria-label="Edytuj zdjęcie ${i + 1}">
+          ${z.mini ? `<img src="${z.mini}" alt="">` : `<div class="laduje">${z.mini === '' ? '⚠ brak podglądu' : '…'}</div>`}
+          <span class="zdj-edytuj">✏</span>
+        </button>
         <div class="nr-strony">${i + 1}</div>
         <div class="zdj-przyciski">
           <button data-akcja="zdjPrzesun" data-i="${i}" data-o="-1" ${i === 0 ? 'disabled' : ''} aria-label="Wcześniej">◀</button>
@@ -1068,15 +1085,16 @@ function dodajZdjecia(pliki) {
   const wszystkie = [...pliki];
   // Niektóre telefony nie podają typu pliku – wtedy przyjmujemy plik i sprawdzamy go przy wczytaniu.
   const nowe = wszystkie.filter((p) => !p.type || p.type.startsWith('image/') || /\.(jpe?g|png|heic|heif|webp)$/i.test(p.name))
-    .map((plik) => ({ id: noweId(), plik, mini: null }));
+    .map((plik) => ({ id: noweId(), plik, mini: null, rogi: null, filtr: filtrDomyslny(), obrot: 0 }));
   const pominiete = wszystkie.length - nowe.length;
   pokazKomunikat(`Dodano ${nowe.length} zdjęć${pominiete ? ` (pominięto ${pominiete} – to nie są zdjęcia)` : ''}`);
   zdjecia.push(...nowe);
   odswiezZdjecia();
-  // Miniatury po kolei (oszczędza pamięć telefonu).
+  // Wykrywanie kartki i miniatury po kolei (oszczędza pamięć telefonu).
   dodawanieZdjec = dodawanieZdjec.then(async () => {
+    const Z = await import('./zdjecia.js');
     for (const z of nowe) {
-      try { z.mini = await (await import('./zdjecia.js')).miniatura(z.plik); } catch (e) { z.mini = ''; }
+      try { await Z.przygotuj(z, { autoKadrowanie: autoKadrowanie() }); } catch (e) { z.mini = ''; }
       odswiezZdjecia();
     }
   });
@@ -1352,6 +1370,34 @@ const akcje = {
     const r = await N.sprawdzKluczOpenAI(klucz, document.getElementById('modelTranskrypcji').value.trim() || N.MODEL_DOMYSLNY);
     wynik.innerHTML = `<div class="${r.ok ? 'karta podpowiedz' : 'flaga'}">${h(r.tekst)}</div>`;
   },
+  async zdjFiltr(el) {
+    const filtr = el.dataset.filtr;
+    ustawOpcjeSkanera('skanerFiltr', filtr);
+    document.querySelectorAll('[data-akcja=zdjFiltr]').forEach((b) => b.classList.toggle('wybrany', b.dataset.filtr === filtr));
+    // Zastosuj do już dodanych zdjęć i odśwież miniatury.
+    await dodawanieZdjec;
+    const Z = await import('./zdjecia.js');
+    for (const z of zdjecia) {
+      z.filtr = filtr;
+      const stara = z.mini; z.mini = null; odswiezZdjecia();
+      try { z.mini = await Z.miniatura(z); } catch (e) { z.mini = ''; }
+      if (stara) URL.revokeObjectURL(stara);
+      odswiezZdjecia();
+    }
+  },
+  async zdjEdytuj(el) {
+    await dodawanieZdjec;
+    const i = +el.dataset.i; const z = zdjecia[i];
+    if (!z) return;
+    const { edytujZdjecie } = await import('./edytor-zdjecia.js');
+    let zmieniono = false;
+    try { zmieniono = await edytujZdjecie(z, i + 1, zdjecia.length); } catch (e) { alert('Nie udało się otworzyć zdjęcia: ' + e.message); }
+    if (!zmieniono) return;
+    const stara = z.mini; z.mini = null; odswiezZdjecia();
+    try { z.mini = await (await import('./zdjecia.js')).miniatura(z); } catch (e) { z.mini = ''; }
+    if (stara) URL.revokeObjectURL(stara);
+    odswiezZdjecia();
+  },
   zdjPrzesun(el) {
     const i = +el.dataset.i, j = i + +el.dataset.o;
     if (j < 0 || j >= zdjecia.length) return;
@@ -1377,7 +1423,8 @@ const akcje = {
     try {
       const { zdjeciaDoPdf } = await import('./zdjecia.js');
       let pominiete = 0;
-      const bajty = await zdjeciaDoPdf(zdjecia.map((z) => z.plik), (n, w, p) => { pominiete = p; b.textContent = `⏳ Przetwarzam ${n} / ${w}…`; });
+      await dodawanieZdjec; // poczekaj, aż wszystkie zdjęcia będą przygotowane
+      const bajty = await zdjeciaDoPdf(zdjecia, (n, w, p) => { pominiete = p; b.textContent = `⏳ Przetwarzam ${n} / ${w}…`; });
       if (pominiete) alert(`Pominięto ${pominiete} plik(ów), których nie udało się odczytać jako zdjęcia.`);
       pokazGotowyPdf(new File([bajty], nazwa.toLowerCase().endsWith('.pdf') ? nazwa : `${nazwa}.pdf`, { type: 'application/pdf' }));
     } catch (e) {
@@ -1638,6 +1685,7 @@ ekran.addEventListener('change', async (e) => {
     } catch (e) { console.error(e); alert('Nie udało się przywrócić kopii: ' + e.message); }
     return;
   }
+  if (el.id === 'skanerAuto') { ustawOpcjeSkanera('skanerAuto', el.checked ? '1' : '0'); return; }
   if (el.id === 'trybTestowy') {
     N.ustawTrybTestowy(el.checked);
     pokazKomunikat(el.checked ? 'Tryb testowy włączony – bez kosztów' : 'Tryb testowy wyłączony');

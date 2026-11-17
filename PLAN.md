@@ -14,7 +14,7 @@ Hosting: GitHub Pages · Baza i logowanie: Firebase · Transkrypcja: OpenAI · W
 | 4 | Claude wypełnia protokół z nagrania (zasady interpretacji, prompt caching, wyróżnienie zmian AI tylko w aplikacji, „Zatwierdź”/„Cofnij”, „✓ OK” przy oznaczeniach) | ✅ gotowe (czeka na test z prawdziwymi kluczami) |
 | 5 | Panel administratora: koszty (zużycie na osobę/dzień, saldo, data końca środków, ważność kluczy), kopia zapasowa z przypomnieniem, test jakości AI; słownik terminów edytowalny przez wszystkich (Ustawienia) | ✅ gotowe |
 | 6 | Instalacja na ekranie głównym (ikona, manifest), uruchamianie bez internetu (service worker), pasek „Jest nowa wersja”, numer wersji, instrukcje Android/iPhone/komputer, ostrzeżenie dla iPhone | ✅ gotowe |
-| 7 | Skaner w „Zdjęcia → PDF”: automatyczne kadrowanie kartki i prostowanie perspektywy, ręczne przycinanie każdego zdjęcia (4 rogi), filtry (szarość, czarno-biały „skan”, kontrast). Wszystko w telefonie – bez kosztów i tokenów | ⬜ |
+| 7 | Skaner w „Zdjęcia → PDF”: automatyczne wykrywanie i prostowanie kartki, edycja rogów z lupą, obrót, filtry (kontrast, szarość, dokument, czarno-biały). Wszystko w telefonie – bez kosztów i tokenów | ✅ gotowe |
 
 ## Pomysły na później
 - Podpis palcem w aplikacji (PDF ma już przygotowane miejsce).
