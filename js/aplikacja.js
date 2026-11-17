@@ -53,7 +53,15 @@ function opisWaznosci(dataIso) {
   if (dni <= 14) return `<b class="pomaranczowy">⚠ wygasa za ${dni} dni</b>`;
   return `pozostało ${dni} dni`;
 }
-const za90Dni = () => { const d = new Date(Date.now() + 90 * 86400000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+// "za ile dni" -> data "RRRR-MM-DD" (puste = nie wygasa).
+function zaDni(ileDni) {
+  const n = parseInt(ileDni, 10);
+  if (!Number.isFinite(n) || String(ileDni).trim() === '') return '';
+  const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+// Pole w Ustawieniach pokazuje, ile dni zostało (ujemne = po terminie -> 0).
+const pozostaloDni = (dataIso) => (dataIso ? Math.max(0, dniDo(dataIso)) : '');
 
 function godzinaPL(ms) {
   if (!ms) return '';
@@ -510,8 +518,8 @@ async function ekranUstawienia() {
         <label class="pole">Klucz OpenAI (transkrypcja) – ${ukryj(klucze.openai)}
           <input type="password" id="kluczOpenai" placeholder="sk-… (wklej, aby zmienić)" autocomplete="off">
         </label>
-        <label class="pole">Klucz OpenAI wygasa dnia ${opisWaznosci(klucze.openaiWygasa) ? `– ${opisWaznosci(klucze.openaiWygasa)}` : ''}
-          <input type="date" id="openaiWygasa" value="${h(klucze.openaiWygasa || '')}">
+        <label class="pole">Klucz OpenAI ważny jeszcze (dni) ${klucze.openaiWygasa ? `– ${opisWaznosci(klucze.openaiWygasa)}, do ${P.dataPL(klucze.openaiWygasa)}` : ''}
+          <input type="number" inputmode="numeric" min="0" id="openaiDni" value="${pozostaloDni(klucze.openaiWygasa)}" placeholder="np. 90 (puste = nie wygasa)">
         </label>
         <label class="pole">Model transkrypcji
           <input type="text" id="modelTranskrypcji" value="${h(klucze.modelTranskrypcji || N.MODEL_DOMYSLNY)}">
@@ -519,8 +527,8 @@ async function ekranUstawienia() {
         <label class="pole">Klucz Anthropic (Claude – etap 4) – ${ukryj(klucze.anthropic)}
           <input type="password" id="kluczAnthropic" placeholder="sk-ant-… (wklej, aby zmienić)" autocomplete="off">
         </label>
-        <label class="pole">Klucz Anthropic wygasa dnia (puste = nie wygasa) ${opisWaznosci(klucze.anthropicWygasa) ? `– ${opisWaznosci(klucze.anthropicWygasa)}` : ''}
-          <input type="date" id="anthropicWygasa" value="${h(klucze.anthropicWygasa || '')}">
+        <label class="pole">Klucz Anthropic ważny jeszcze (dni) ${klucze.anthropicWygasa ? `– ${opisWaznosci(klucze.anthropicWygasa)}, do ${P.dataPL(klucze.anthropicWygasa)}` : ''}
+          <input type="number" inputmode="numeric" min="0" id="anthropicDni" value="${pozostaloDni(klucze.anthropicWygasa)}" placeholder="puste = nie wygasa">
         </label>
         <button class="duzy glowny" data-akcja="zapiszKlucze">💾 Zapisz</button>
         <button class="sredni" data-akcja="sprawdzOpenai">🔍 Sprawdź klucz OpenAI (bez kosztów)</button>
@@ -805,10 +813,11 @@ const akcje = {
     const zmiany = { modelTranskrypcji: document.getElementById('modelTranskrypcji').value.trim() || N.MODEL_DOMYSLNY };
     const o = document.getElementById('kluczOpenai').value.trim();
     const a = document.getElementById('kluczAnthropic').value.trim();
-    zmiany.openaiWygasa = document.getElementById('openaiWygasa').value;
-    zmiany.anthropicWygasa = document.getElementById('anthropicWygasa').value;
-    // Nowy klucz OpenAI bez podanej daty -> domyślnie 90 dni (tak jak ustawiasz w panelu OpenAI).
-    if (o) { zmiany.openai = o; if (!zmiany.openaiWygasa) zmiany.openaiWygasa = za90Dni(); }
+    const dniO = document.getElementById('openaiDni').value;
+    zmiany.openaiWygasa = zaDni(dniO);
+    zmiany.anthropicWygasa = zaDni(document.getElementById('anthropicDni').value);
+    // Nowy klucz OpenAI bez podanej liczby dni -> domyślnie 90 dni (tak jak ustawiasz w panelu OpenAI).
+    if (o) { zmiany.openai = o; if (!dniO.trim()) zmiany.openaiWygasa = zaDni(90); }
     if (a) zmiany.anthropic = a;
     try {
       await N.zapiszKlucze(zmiany);
