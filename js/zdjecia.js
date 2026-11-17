@@ -46,8 +46,15 @@ export async function miniatura(plik) {
  */
 export async function zdjeciaDoPdf(pliki, postep = () => {}) {
   const pdf = await PDFDocument.create();
+  let pominiete = 0;
   for (let i = 0; i < pliki.length; i++) {
-    const { blob, w, h } = await przeskaluj(pliki[i], 2000, 0.85);
+    let zdj;
+    try { zdj = await przeskaluj(pliki[i], 2000, 0.85); } catch (e) {
+      pominiete++; // plik, którego przeglądarka nie umie odczytać – pomijamy, reszta idzie dalej
+      postep(i + 1, pliki.length, pominiete);
+      continue;
+    }
+    const { blob, w, h } = zdj;
     const obraz = await pdf.embedJpg(new Uint8Array(await blob.arrayBuffer()));
     const [W, H] = w > h ? [A4[1], A4[0]] : A4; // poziome zdjęcie -> pozioma strona
     const skala = Math.min((W - 2 * MARGINES) / w, (H - 2 * MARGINES) / h);
@@ -55,9 +62,10 @@ export async function zdjeciaDoPdf(pliki, postep = () => {}) {
     strona.drawImage(obraz, {
       x: (W - w * skala) / 2, y: (H - h * skala) / 2, width: w * skala, height: h * skala,
     });
-    postep(i + 1, pliki.length);
+    postep(i + 1, pliki.length, pominiete);
     await new Promise((ok) => setTimeout(ok, 0)); // daj telefonowi odetchnąć
   }
+  if (!pdf.getPageCount()) throw new Error('Żadnego z wybranych plików nie udało się odczytać jako zdjęcia.');
   pdf.setTitle('Zdjęcia');
   pdf.setCreator('Protokoły kontroli');
   pdf.setProducer('Protokoły kontroli');

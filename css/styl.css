@@ -228,3 +228,7 @@ h2 { display: flex; align-items: center; justify-content: space-between; }
 /* Przełącznik */
 .przelacznik { display: flex; align-items: center; gap: 12px; font-weight: 600; min-height: 48px; }
 .przelacznik input { width: 30px; height: 30px; accent-color: var(--niebieski); }
+
+/* Przycisk wyboru plików (prawdziwe pole pliku pod spodem – niezawodne na Androidzie) */
+.wybor-pliku { position: relative; overflow: hidden; cursor: pointer; }
+.wybor-pliku input[type=file] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 0; }

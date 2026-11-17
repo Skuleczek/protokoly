@@ -610,11 +610,13 @@ function ekranZdjecia() {
     <main class="formularz">
       <p class="info">Każde zdjęcie to osobna strona A4 (poziome zdjęcie = pozioma strona). Bez limitu zdjęć, bez znaków wodnych. Nic nie jest wysyłane do internetu.</p>
       <div class="rzad">
-        <button class="duzy glowny" data-akcja="zdjDodaj">🖼 Z galerii</button>
-        <button class="duzy" data-akcja="zdjAparat">📷 Aparat</button>
+        <label class="duzy glowny przycisk-link wybor-pliku">🖼 Z galerii
+          <input type="file" id="wybierzZdjecia" accept="image/*" multiple>
+        </label>
+        <label class="duzy przycisk-link wybor-pliku">📷 Aparat
+          <input type="file" id="zrobZdjecie" accept="image/*" capture="environment">
+        </label>
       </div>
-      <input type="file" id="wybierzZdjecia" accept="image/*" multiple hidden>
-      <input type="file" id="zrobZdjecie" accept="image/*" capture="environment" hidden>
       <label class="pole">Nazwa pliku
         <input type="text" id="nazwaZdjec" value="Zdjęcia ${P.dataPL(P.dzisiaj())}">
       </label>
@@ -633,7 +635,7 @@ function odswiezZdjecia() {
     <h2>Zdjęcia (${zdjecia.length}) <button class="maly-link" data-akcja="zdjWyczysc">usuń wszystkie</button></h2>
     <div class="siatka-zdjec">
       ${zdjecia.map((z, i) => `<div class="zdjecie">
-        ${z.mini ? `<img src="${z.mini}" alt="">` : '<div class="laduje">…</div>'}
+        ${z.mini ? `<img src="${z.mini}" alt="">` : `<div class="laduje">${z.mini === '' ? '⚠ brak podglądu' : '…'}</div>`}
         <div class="nr-strony">${i + 1}</div>
         <div class="zdj-przyciski">
           <button data-akcja="zdjPrzesun" data-i="${i}" data-o="-1" ${i === 0 ? 'disabled' : ''} aria-label="Wcześniej">◀</button>
@@ -647,8 +649,12 @@ function odswiezZdjecia() {
 }
 
 function dodajZdjecia(pliki) {
-  const nowe = [...pliki].filter((p) => p.type.startsWith('image/') || /\.(jpe?g|png|heic|webp)$/i.test(p.name))
+  const wszystkie = [...pliki];
+  // Niektóre telefony nie podają typu pliku – wtedy przyjmujemy plik i sprawdzamy go przy wczytaniu.
+  const nowe = wszystkie.filter((p) => !p.type || p.type.startsWith('image/') || /\.(jpe?g|png|heic|heif|webp)$/i.test(p.name))
     .map((plik) => ({ id: noweId(), plik, mini: null }));
+  const pominiete = wszystkie.length - nowe.length;
+  pokazKomunikat(`Dodano ${nowe.length} zdjęć${pominiete ? ` (pominięto ${pominiete} – to nie są zdjęcia)` : ''}`);
   zdjecia.push(...nowe);
   odswiezZdjecia();
   // Miniatury po kolei (oszczędza pamięć telefonu).
@@ -780,8 +786,6 @@ const akcje = {
     const r = await N.sprawdzKluczOpenAI(klucz, document.getElementById('modelTranskrypcji').value.trim() || N.MODEL_DOMYSLNY);
     wynik.innerHTML = `<div class="${r.ok ? 'karta podpowiedz' : 'flaga'}">${h(r.tekst)}</div>`;
   },
-  zdjDodaj() { document.getElementById('wybierzZdjecia').click(); },
-  zdjAparat() { document.getElementById('zrobZdjecie').click(); },
   zdjPrzesun(el) {
     const i = +el.dataset.i, j = i + +el.dataset.o;
     if (j < 0 || j >= zdjecia.length) return;
@@ -806,7 +810,9 @@ const akcje = {
     b.disabled = true;
     try {
       const { zdjeciaDoPdf } = await import('./zdjecia.js');
-      const bajty = await zdjeciaDoPdf(zdjecia.map((z) => z.plik), (n, w) => { b.textContent = `⏳ Przetwarzam ${n} / ${w}…`; });
+      let pominiete = 0;
+      const bajty = await zdjeciaDoPdf(zdjecia.map((z) => z.plik), (n, w, p) => { pominiete = p; b.textContent = `⏳ Przetwarzam ${n} / ${w}…`; });
+      if (pominiete) alert(`Pominięto ${pominiete} plik(ów), których nie udało się odczytać jako zdjęcia.`);
       pokazGotowyPdf(new File([bajty], nazwa.toLowerCase().endsWith('.pdf') ? nazwa : `${nazwa}.pdf`, { type: 'application/pdf' }));
     } catch (e) {
       console.error(e);
