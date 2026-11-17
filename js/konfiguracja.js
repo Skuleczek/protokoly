@@ -12,3 +12,17 @@ export const KONFIG_FIREBASE = {
 
 // Ile godzin ważny jest kod zaproszenia.
 export const WAZNOSC_KODU_GODZ = 48;
+
+// Ceny orientacyjne (USD) do panelu kosztów – stan na listopad 2026.
+// Dokładne kwoty zawsze w panelach OpenAI i Anthropic. W razie zmiany cennika popraw tutaj.
+export const CENY = {
+  // transkrypcja: USD za minutę nagrania
+  transkrypcja: { 'gpt-transcribe': 0.0045, 'gpt-4o-transcribe': 0.006, 'gpt-4o-mini-transcribe': 0.003, domyslna: 0.006 },
+  // Claude: USD za milion tokenów
+  ai: {
+    'claude-sonnet-5-5': { wejscie: 2, wyjscie: 10, cacheOdczyt: 0.10, cacheZapis: 2.5 },
+    'claude-opus-5-5': { wejscie: 4, wyjscie: 20, cacheOdczyt: 0.20, cacheZapis: 5 },
+    'claude-haiku-5-5': { wejscie: 0.10, wyjscie: 0.50, cacheOdczyt: 0.01, cacheZapis: 0.125 },
+    domyslna: { wejscie: 2, wyjscie: 10, cacheOdczyt: 0.10, cacheZapis: 2.5 },
+  },
+};

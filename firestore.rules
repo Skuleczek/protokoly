@@ -90,7 +90,8 @@ service cloud.firestore {
     }
     match /protokoly/{id} {
       allow read: if czlonek();
-      allow create: if czlonek() && request.resource.data.autor == mojeKontoId();
+      // Autor = osoba tworząca; administrator może odtworzyć cudze protokoły z kopii zapasowej.
+      allow create: if czlonek() && (request.resource.data.autor == mojeKontoId() || admin());
       // Autora nie da się podmienić.
       allow update: if czlonek() && request.resource.data.autor == resource.data.autor;
       allow delete: if admin() || (czlonek() && resource.data.autor == mojeKontoId());
@@ -102,6 +103,17 @@ service cloud.firestore {
     match /sekrety/{id} {
       allow read: if czlonek();
       allow write: if admin();
+    }
+
+    // ---------- dane wspólne dla zespołu (np. słownik terminów) ----------
+    match /wspolne/{id} {
+      allow read: if czlonek();
+      allow write: if admin();
+    }
+
+    // ---------- ustawienia tylko dla administratora (saldo, kurs walut) ----------
+    match /admin/{id} {
+      allow read, write: if admin();
     }
 
     // ---------- zużycie AI (podgląd kosztów – etap 5) ----------

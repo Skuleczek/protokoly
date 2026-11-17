@@ -247,3 +247,13 @@ h2 { display: flex; align-items: center; justify-content: space-between; }
 .flaga-z-ok span { flex: 1; }
 .ok-flagi { flex: 0 0 auto; min-height: 44px; min-width: 64px; border: 2px solid #c79100; border-radius: 8px; background: #fff; color: #5a4300; font-weight: 700; }
 .test-zle { border-color: var(--czerwony); border-left: 6px solid var(--czerwony); }
+
+/* Panel kosztów */
+.duza-liczba { font-size: 34px; font-weight: 800; margin: 4px 0; font-variant-numeric: tabular-nums; }
+.tabela > div { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-top: 1px solid var(--szary-tlo); }
+.tabela > div:first-child { border-top: 0; }
+.slupek { display: grid; grid-template-columns: 48px 1fr 52px; align-items: center; gap: 8px; margin: 4px 0; font-size: 15px; }
+.slupek b { text-align: right; font-variant-numeric: tabular-nums; }
+.pasek-tlo { background: var(--szary-tlo); border-radius: 6px; height: 14px; overflow: hidden; }
+.pasek-tlo > div { background: var(--niebieski); height: 100%; min-width: 2px; }
+.karta textarea#terminy { font-size: 16px; line-height: 1.5; }

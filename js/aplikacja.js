@@ -9,7 +9,7 @@
 //   #/pdf/przeglad/ID, #/pdf/grupa/ID – wybór protokołów do PDF
 //   #/zdjecia               – zdjęcia -> jeden plik PDF
 //   #/ustawienia            – tryb testowy (dla wszystkich)
-//   #/administrator, #/klucze – menu administratora, klucze API
+//   #/administrator, #/klucze, #/koszty, #/slownik, #/kopia, #/testai – ekrany administratora
 // ============================================================
 
 import { baza, noweId, poprosOTrwalyZapis, przyBledzieZapisu } from './baza.js';
@@ -17,6 +17,7 @@ import * as P from './protokol.js';
 import * as C from './chmura.js';
 import * as N from './nagrania.js';
 import * as AI from './ai.js';
+import * as K from './koszty.js';
 
 const ekran = document.getElementById('app');
 
@@ -593,6 +594,9 @@ async function rozpocznijNagranie() {
 // Administrator: ostrzeżenie o kończącej się ważności kluczy API.
 async function ostrzezeniaKluczy() {
   if (!jestAdminem()) return;
+  const dniOdKopii = (Date.now() - ostatniaKopia()) / 86400000;
+  const przypomnienieKopii = dniOdKopii > 14
+    ? `<a class="flaga przycisk-link-flaga" href="#/kopia">💾 ${ostatniaKopia() ? `Ostatnia kopia zapasowa: ${Math.floor(dniOdKopii)} dni temu` : 'Nie masz jeszcze kopii zapasowej'} – dotknij, aby ją zrobić.</a>` : '';
   const k = await N.pobierzKlucze();
   const teksty = [['OpenAI', k.openai && k.openaiWygasa], ['Anthropic', k.anthropic && k.anthropicWygasa]]
     .filter(([, data]) => data && dniDo(data) <= 14)
@@ -600,7 +604,7 @@ async function ostrzezeniaKluczy() {
       ? `⛔ Klucz ${nazwa} wygasł – nagrania/AI nie działają. Wygeneruj nowy klucz i wpisz go w: Administrator → Klucze API.`
       : `⚠ Klucz ${nazwa} wygasa za ${dniDo(data)} dni (${P.dataPL(data)}) – wygeneruj nowy i wpisz w: Administrator → Klucze API.`));
   const el = document.getElementById('ostrzezeniaKluczy');
-  if (el) el.innerHTML = teksty.map((x) => `<a class="flaga przycisk-link-flaga" href="#/klucze">${h(x)}</a>`).join('');
+  if (el) el.innerHTML = teksty.map((x) => `<a class="flaga przycisk-link-flaga" href="#/klucze">${h(x)}</a>`).join('') + przypomnienieKopii;
 }
 
 // ------------------------------------------------------------
@@ -627,10 +631,12 @@ function ekranAdministrator() {
     <header class="pasek"><a class="wstecz" href="#/">‹</a><h1>Administrator</h1></header>
     <main>
       <a class="duzy przycisk-link" href="#/uzytkownicy">👥 Użytkownicy i kody</a>
+      <a class="duzy przycisk-link" href="#/koszty">💰 Koszty i zużycie</a>
       <a class="duzy przycisk-link" href="#/klucze">🔑 Klucze API</a>
+      <a class="duzy przycisk-link" href="#/slownik">📖 Słownik terminów</a>
+      <a class="duzy przycisk-link" href="#/kopia">💾 Kopia zapasowa</a>
       <a class="duzy przycisk-link" href="#/testai">🧪 Test jakości AI</a>
       <div id="ostrzezeniaKluczy"></div>
-      <p class="info">Wkrótce: 💰 koszty i zużycie (etap 5).</p>
     </main>`;
   ostrzezeniaKluczy();
 }
@@ -650,6 +656,135 @@ async function ekranTestAI() {
       <p class="info">Koszt jednego testu: ok. 1 zł (klucz Anthropic z „Klucze API”). Nie zmienia żadnych protokołów.</p>
       <button class="duzy glowny" data-akcja="uruchomTestAI" id="przyciskTestuAI">▶ Uruchom test</button>
       <div id="wynikiTestu"></div>
+    </main>`;
+}
+
+// ------------------------------------------------------------
+// EKRAN: koszty i zużycie (administrator)
+// ------------------------------------------------------------
+const miesiacTeraz = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+let miesiacKosztow = null;
+
+async function ekranKoszty() {
+  if (!jestAdminem()) return idzDo('#/');
+  const miesiac = miesiacKosztow || miesiacTeraz();
+  ekran.innerHTML = `<header class="pasek"><a class="wstecz" href="#/administrator">‹</a><h1>Koszty i zużycie</h1></header>
+    <main><p class="pusto">Liczę…</p></main>`;
+  let budzet, wpisy, saldoA, saldoO, klucze;
+  try {
+    [budzet, wpisy, klucze] = await Promise.all([K.pobierzBudzet(), K.zuzycieMiesiaca(miesiac), N.pobierzKlucze(true)]);
+    [saldoA, saldoO] = await Promise.all([K.szacujSaldo(budzet, 'anthropic'), K.szacujSaldo(budzet, 'openai')]);
+  } catch (e) {
+    console.error(e);
+    ekran.querySelector('main').innerHTML = '<p class="pusto">Panel kosztów wymaga internetu.</p>';
+    return;
+  }
+  const kurs = budzet.kurs || 4.0;
+  const s = K.podsumuj(wpisy);
+  const liczba = (x, m = 2) => x.toLocaleString('pl-PL', { minimumFractionDigits: m, maximumFractionDigits: m });
+  const usd = (x) => `${liczba(x)} USD`;
+  const pln = (x) => `≈ ${liczba(x * kurs)} zł`;
+  const maxDzien = Math.max(0.0001, ...Object.values(s.dni));
+  const kartaSalda = (nazwa, serwis, sal, kluczWygasa, panel) => `<section class="karta">
+    <h3>${nazwa}</h3>
+    ${sal ? `<div class="duza-liczba ${sal.pozostalo < 2 ? 'czerwony' : ''}">${usd(Math.max(0, sal.pozostalo))}</div>
+      <p class="info">szacowane saldo · ${pln(Math.max(0, sal.pozostalo))} · od ${godzinaPL(sal.data)} zużyto ${usd(sal.zuzyte)}</p>
+      <p>${sal.dniDoKonca === null ? 'Brak zużycia w ostatnich 14 dniach.' : `Średnio ${usd(sal.dziennie)} dziennie → wystarczy na ok. <b>${Math.floor(sal.dniDoKonca)} dni</b> (do ${godzinaPL(sal.koniec).slice(0, 10)})`}</p>`
+      : '<p class="info">Wpisz aktualny stan konta z panelu dostawcy, a aplikacja będzie szacować saldo i datę końca środków.</p>'}
+    <div class="rzad">
+      <label class="pole maly">Aktualny stan konta (USD)<input type="text" inputmode="decimal" id="saldo-${serwis}" placeholder="np. 18,50"></label>
+      <button class="sredni" data-akcja="ustawSaldo" data-serwis="${serwis}">Ustaw</button>
+    </div>
+    <p class="info">Klucz: ${kluczWygasa ? opisWaznosci(kluczWygasa) || 'ważny' : 'bez daty ważności'} · <a href="${panel}" target="_blank" rel="noopener">otwórz panel rozliczeń ↗</a></p>
+  </section>`;
+
+  ekran.innerHTML = `
+    <header class="pasek"><a class="wstecz" href="#/administrator">‹</a><h1>Koszty i zużycie</h1></header>
+    <main>
+      <label class="pole">Miesiąc <input type="month" id="miesiacKosztow" value="${miesiac}"></label>
+      <section class="karta karta-ai">
+        <h3>Razem w miesiącu</h3>
+        <div class="duza-liczba">${usd(s.razem)}</div>
+        <p class="info">${pln(s.razem)} (kurs ${liczba(kurs)} zł/USD)</p>
+        <div class="tabela">
+          <div><span>🎙 Transkrypcja (OpenAI)</span><b>${usd(s.openai)}</b></div>
+          <div><span class="info">nagrania: ${liczba(s.minuty, 1)} min</span><span></span></div>
+          <div><span>🤖 Wypełnianie AI (Anthropic)</span><b>${usd(s.anthropic)}</b></div>
+          <div><span class="info">wypełnień: ${s.wypelnienia}${s.testy ? ` + testy: ${s.testy}` : ''}</span><span></span></div>
+          ${s.wypelnienia ? `<div><span>Średnio na wypełnienie (z transkrypcją)</span><b>${liczba((s.razem - s.kosztTestow) / s.wypelnienia * 100, 1)} centa</b></div>` : ''}
+        </div>
+      </section>
+      <section class="karta">
+        <h3>👥 Na osobę</h3>
+        ${Object.keys(s.osoby).length ? `<div class="tabela">${Object.entries(s.osoby).sort((a, b) => b[1] - a[1])
+          .map(([o, x]) => `<div><span>${h(o)}</span><b>${usd(x)}</b></div>`).join('')}</div>` : '<p class="info">Brak zużycia w tym miesiącu.</p>'}
+      </section>
+      <section class="karta">
+        <h3>📅 Dziennie</h3>
+        ${Object.keys(s.dni).length ? Object.entries(s.dni).sort().map(([d, x]) => `<div class="slupek">
+          <span>${P.dataPL(d).slice(0, 5)}</span><div class="pasek-tlo"><div style="width:${Math.round((x / maxDzien) * 100)}%"></div></div><b>${liczba(x)}</b></div>`).join('')
+          : '<p class="info">Brak danych.</p>'}
+      </section>
+      ${kartaSalda('💳 Anthropic (Claude)', 'anthropic', saldoA, klucze.anthropicWygasa, 'https://console.anthropic.com/settings/billing')}
+      ${kartaSalda('💳 OpenAI (transkrypcja)', 'openai', saldoO, klucze.openaiWygasa, 'https://platform.openai.com/settings/organization/billing/overview')}
+      <section class="karta">
+        <h3>Pozostałe usługi</h3>
+        <div class="tabela">
+          <div><span>Firebase (baza, logowanie)</span><b>0 zł – plan darmowy</b></div>
+          <div><span>GitHub Pages (strona)</span><b>0 zł</b></div>
+          <div><span>Claude Code (budowa aplikacji)</span><b>Twoja subskrypcja Claude</b></div>
+        </div>
+        <p class="info">Aplikacja do działania potrzebuje tylko OpenAI i Anthropic. Subskrypcja Claude jest potrzebna wyłącznie do zmian w aplikacji.</p>
+        <label class="pole maly">Kurs USD → zł <input type="text" inputmode="decimal" id="kursUSD" value="${liczba(kurs)}"></label>
+        <button class="sredni" data-akcja="zapiszKurs">Zapisz kurs</button>
+      </section>
+      <p class="info">Kwoty są szacunkowe – liczone z zapisanego zużycia i cennika w aplikacji. Dokładne rozliczenie: panele OpenAI i Anthropic.</p>
+    </main>`;
+}
+
+// ------------------------------------------------------------
+// EKRAN: słownik terminów (administrator)
+// ------------------------------------------------------------
+async function ekranSlownik() {
+  if (!jestAdminem()) return idzDo('#/');
+  const terminy = await N.wczytajSlownik(true);
+  ekran.innerHTML = `
+    <header class="pasek"><a class="wstecz" href="#/administrator">‹</a><h1>Słownik terminów</h1></header>
+    <main class="formularz">
+      <p class="info">Nazwy producentów, modele central, skróty i żargon – <b>jeden termin w linii</b>. Słownik pomaga w rozpoznawaniu mowy i w rozumieniu nagrań przez AI. Wspólny dla całego zespołu.</p>
+      <label class="pole">Terminy (<span id="ileTerminow">${terminy.length}</span>)
+        <textarea id="terminy" rows="18">${h(terminy.join('\n'))}</textarea>
+      </label>
+      <button class="sredni" data-akcja="slownikStartowy">↺ Przywróć listę startową</button>
+    </main>
+    <footer class="dolny"><button class="duzy glowny" data-akcja="zapiszSlownik">💾 Zapisz słownik</button></footer>`;
+}
+
+// ------------------------------------------------------------
+// EKRAN: kopia zapasowa (administrator)
+// ------------------------------------------------------------
+const KOLEKCJE_KOPII = ['grupy', 'przeglady', 'protokoly'];
+function ostatniaKopia() { try { return +localStorage.getItem('ostatniaKopia') || 0; } catch (e) { return 0; } }
+
+async function ekranKopia() {
+  if (!jestAdminem()) return idzDo('#/');
+  const ost = ostatniaKopia();
+  ekran.innerHTML = `
+    <header class="pasek"><a class="wstecz" href="#/administrator">‹</a><h1>Kopia zapasowa</h1></header>
+    <main>
+      <section class="karta">
+        <h3>💾 Zapisz kopię</h3>
+        <p class="info">Wszystkie grupy, przeglądy i protokoły w jednym pliku. Dane są i tak w chmurze (Firebase) – kopia to dodatkowe zabezpieczenie, np. na Dysku Google lub w mailu.</p>
+        <p>Ostatnia kopia z tego urządzenia: <b>${ost ? godzinaPL(ost) : 'nigdy'}</b></p>
+        <button class="duzy glowny" data-akcja="eksportKopii">💾 Utwórz kopię</button>
+      </section>
+      <section class="karta">
+        <h3>↺ Przywróć z kopii</h3>
+        <p class="info">Protokoły z pliku zostaną zapisane w bazie. Protokoły o tych samych identyfikatorach zostaną nadpisane wersją z kopii, pozostałe – bez zmian.</p>
+        <label class="duzy przycisk-link wybor-pliku">📂 Wybierz plik kopii
+          <input type="file" id="plikKopii" accept=".json,application/json">
+        </label>
+      </section>
     </main>`;
 }
 
@@ -771,16 +906,21 @@ async function generujPdf(protokoly, nazwaPliku) {
   }
 }
 
-function pokazGotowyPdf(plik) {
+function pokazGotowyPdf(plik) { pokazGotowyPlik(plik, '✓ PDF gotowy'); }
+// Nazwa do zapisu na dysku: bez polskich liter (część przeglądarek zamienia
+// takie nazwy na „download”). Przy „Udostępnij” zostaje pełna polska nazwa.
+const bezPolskichLiter = (s) => s.replace(/ł/g, 'l').replace(/Ł/g, 'L').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+function pokazGotowyPlik(plik, tytul) {
   const adres = URL.createObjectURL(plik);
   const moznaUdostepnic = navigator.canShare && navigator.canShare({ files: [plik] });
   const okno = document.createElement('div');
   okno.className = 'okno-tlo';
   okno.innerHTML = `<div class="okno">
-    <h3>✓ PDF gotowy</h3>
+    <h3>${h(tytul)}</h3>
     <p class="info">${h(plik.name)} · ${Math.max(1, Math.round(plik.size / 1024))} KB</p>
-    <a class="duzy glowny przycisk-link" href="${adres}" download="${h(plik.name)}" target="_blank">💾 Otwórz / zapisz</a>
-    ${moznaUdostepnic ? '<button class="duzy" data-okno="udostepnij">📤 Udostępnij (e-mail, WhatsApp…)</button>' : ''}
+    <a class="duzy glowny przycisk-link" href="${adres}" download="${h(bezPolskichLiter(plik.name))}" target="_blank">💾 Otwórz / zapisz</a>
+    ${moznaUdostepnic ? '<button class="duzy" data-okno="udostepnij">📤 Udostępnij (e-mail, Dysk, WhatsApp…)</button>' : ''}
     <button class="sredni" data-okno="zamknij">Zamknij</button>
   </div>`;
   okno.addEventListener('click', async (e) => {
@@ -954,6 +1094,41 @@ async function nowaCentrala(przegladId, zmiany = {}) {
 }
 
 const akcje = {
+  async ustawSaldo(el) {
+    const serwis = el.dataset.serwis;
+    const wartosc = parseFloat(document.getElementById(`saldo-${serwis}`).value.replace(',', '.'));
+    if (!Number.isFinite(wartosc)) return pokazKomunikat('Wpisz kwotę w USD, np. 18,50');
+    await K.zapiszBudzet({ [serwis]: { saldo: wartosc, data: Date.now() } });
+    pokazKomunikat('Zapisano stan konta ✓');
+    ekranKoszty();
+  },
+  async zapiszKurs() {
+    const kurs = parseFloat(document.getElementById('kursUSD').value.replace(',', '.'));
+    if (!Number.isFinite(kurs) || kurs <= 0) return;
+    await K.zapiszBudzet({ kurs });
+    ekranKoszty();
+  },
+  async zapiszSlownik() {
+    const terminy = [...new Set(document.getElementById('terminy').value.split('\n').map((x) => x.trim()).filter(Boolean))];
+    try { await N.zapiszSlownik(terminy); pokazKomunikat(`Zapisano słownik (${terminy.length} terminów) ✓`); ekranSlownik(); } catch (e) { alert('Nie udało się zapisać (potrzebny internet).'); }
+  },
+  async slownikStartowy() {
+    if (!confirm('Zastąpić obecną listę listą startową? (Zmiana zapisze się dopiero po „Zapisz słownik”.)')) return;
+    const t = await N.slownikStartowy();
+    document.getElementById('terminy').value = t.join('\n');
+    document.getElementById('ileTerminow').textContent = t.length;
+  },
+  async eksportKopii() {
+    pokazKomunikat('Pobieram dane…');
+    try {
+      const dane = { aplikacja: 'Protokoły kontroli', wersja: 1, utworzono: new Date().toISOString(), autor: C.sesja.imie };
+      for (const k of KOLEKCJE_KOPII) dane[k] = (await C.F.getDocs(C.F.collection(C.fs, k))).docs.map((d) => d.data());
+      const plik = new File([JSON.stringify(dane)], `Kopia protokołów ${P.dataPL(P.dzisiaj())}.json`, { type: 'application/json' });
+      try { localStorage.setItem('ostatniaKopia', String(Date.now())); } catch (e) { /* trudno */ }
+      pokazGotowyPlik(plik, `✓ Kopia gotowa: ${dane.protokoly.length} protokołów`);
+      ekranKopia();
+    } catch (e) { console.error(e); alert('Nie udało się utworzyć kopii (potrzebny internet).'); }
+  },
   async uruchomTestAI() {
     const T = await import('./testy-ai.js');
     const przycisk = document.getElementById('przyciskTestuAI');
@@ -1351,6 +1526,28 @@ ekran.addEventListener('input', (e) => {
 // Zmiana daty przeglądu / zaznaczenie protokołu do PDF.
 ekran.addEventListener('change', async (e) => {
   const el = e.target;
+  if (el.id === 'miesiacKosztow' && el.value) { miesiacKosztow = el.value; ekranKoszty(); return; }
+  if (el.id === 'plikKopii' && el.files.length) {
+    const plik = el.files[0];
+    el.value = '';
+    let dane;
+    try { dane = JSON.parse(await plik.text()); } catch (e) { alert('To nie jest plik kopii (błędny format).'); return; }
+    if (!dane || dane.aplikacja !== 'Protokoły kontroli' || !Array.isArray(dane.protokoly)) { alert('To nie jest plik kopii tej aplikacji.'); return; }
+    if (!confirm(`Kopia z ${godzinaPL(Date.parse(dane.utworzono))}: ${dane.grupy.length} grup, ${dane.przeglady.length} przeglądów, ${dane.protokoly.length} protokołów. Przywrócić?`)) return;
+    try {
+      let partia = C.F.writeBatch(C.fs); let n = 0;
+      for (const k of KOLEKCJE_KOPII) {
+        for (const d of dane[k] || []) {
+          if (!d.id) continue;
+          partia.set(C.F.doc(C.fs, k, d.id), d);
+          if (++n % 400 === 0) { await partia.commit(); partia = C.F.writeBatch(C.fs); }
+        }
+      }
+      await partia.commit();
+      alert(`Przywrócono ${n} wpisów ✓`);
+    } catch (e) { console.error(e); alert('Nie udało się przywrócić kopii: ' + e.message); }
+    return;
+  }
   if (el.id === 'trybTestowy') {
     N.ustawTrybTestowy(el.checked);
     pokazKomunikat(el.checked ? 'Tryb testowy włączony – bez kosztów' : 'Tryb testowy wyłączony');
@@ -1400,6 +1597,9 @@ async function pokaz() {
   else if (rodzaj === 'administrator') ekranAdministrator();
   else if (rodzaj === 'klucze') await ekranKlucze();
   else if (rodzaj === 'testai') await ekranTestAI();
+  else if (rodzaj === 'koszty') await ekranKoszty();
+  else if (rodzaj === 'slownik') await ekranSlownik();
+  else if (rodzaj === 'kopia') await ekranKopia();
   else { await ekranGrupy(); odswiezStanKolejki(); ostrzezeniaKluczy(); }
 }
 

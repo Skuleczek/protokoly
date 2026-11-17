@@ -42,12 +42,26 @@ export function ustawTrybTestowy(wl) {
   try { localStorage.setItem('trybTestowy', wl ? '1' : '0'); } catch (e) { /* trudno */ }
 }
 
+// Słownik terminów: wspólny dla zespołu (Firebase: wspolne/slownik, edytuje administrator).
+// Gdy go jeszcze nie ma – lista startowa z pliku dane/slownik-startowy.json.
 let slownikCache = null;
-export async function wczytajSlownik() {
-  if (!slownikCache) {
-    try { slownikCache = await (await fetch('dane/slownik-startowy.json')).json(); } catch (e) { slownikCache = []; }
+export async function slownikStartowy() {
+  try { return await (await fetch('dane/slownik-startowy.json')).json(); } catch (e) { return []; }
+}
+export async function wczytajSlownik(odswiez = false) {
+  if (slownikCache && !odswiez) return slownikCache;
+  const ref = F.doc(fs, 'wspolne', 'slownik');
+  let d = null;
+  try { d = navigator.onLine ? await F.getDoc(ref) : await F.getDocFromCache(ref); } catch (e) {
+    try { d = await F.getDocFromCache(ref); } catch (e2) { d = null; }
   }
+  const terminy = d && d.exists() && Array.isArray(d.data().terminy) ? d.data().terminy : null;
+  slownikCache = terminy || await slownikStartowy();
   return slownikCache;
+}
+export async function zapiszSlownik(terminy) {
+  await F.setDoc(F.doc(fs, 'wspolne', 'slownik'), { terminy, zmieniono: F.serverTimestamp() });
+  slownikCache = terminy;
 }
 async function podpowiedzSlownika() {
   await wczytajSlownik();
