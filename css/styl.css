@@ -235,3 +235,14 @@ h2 { display: flex; align-items: center; justify-content: space-between; }
 .czerwony { color: var(--czerwony); }
 .pomaranczowy { color: #a35f00; }
 .przycisk-link-flaga { display: block; text-decoration: none; margin: 8px 0; }
+
+/* Wyróżnienie pól uzupełnionych przez AI (tylko w aplikacji, nie w PDF) */
+.znak-ai { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 9px; background: #1565c0; color: #fff; font-size: 12px; font-weight: 700; vertical-align: middle; }
+.punkt.ai { background: #e8f1fb; border-radius: 8px; padding: 10px 8px 6px; border-top-color: transparent; }
+.pole.ai input, .pole.ai textarea { border-color: #1565c0; background: #eef5fc; }
+.karta-ai { background: #e8f1fb; border: 2px solid #1565c0; }
+.karta-ai h3 { margin: 0 0 6px; color: #0d47a1; }
+.karta-ai p { margin: 4px 0; }
+.flaga-z-ok { display: flex; align-items: center; gap: 8px; }
+.flaga-z-ok span { flex: 1; }
+.ok-flagi { flex: 0 0 auto; min-height: 44px; min-width: 64px; border: 2px solid #c79100; border-radius: 8px; background: #fff; color: #5a4300; font-weight: 700; }

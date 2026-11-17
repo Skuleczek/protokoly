@@ -15,6 +15,7 @@ import { baza, noweId, poprosOTrwalyZapis, przyBledzieZapisu } from './baza.js';
 import * as P from './protokol.js';
 import * as C from './chmura.js';
 import * as N from './nagrania.js';
+import * as AI from './ai.js';
 
 const ekran = document.getElementById('app');
 
@@ -229,19 +230,27 @@ async function zapiszTeraz() {
   await baza.zapisz('protokoly', doZapisu);
 }
 
+// Pola zmienione przez AI (wyróżniane do czasu „Zatwierdź”) – tylko w aplikacji, nie w PDF.
+function zmienioneAI(p) {
+  return new Set(p.ostatnieAI && !p.ostatnieAI.zatwierdzone ? p.ostatnieAI.zmienione : []);
+}
+const znakAI = '<span class="znak-ai">🤖 AI</span>';
+
 function htmlFlagi(p, klucz) {
   const f = p.flagi && p.flagi[klucz];
   if (!f) return '';
   const nazwa = f.typ === 'uzupelnij' ? 'Do uzupełnienia' : 'Do sprawdzenia';
-  return `<div class="flaga">⚠ ${nazwa}${f.cytat ? `: „${h(f.cytat)}”` : ''}</div>`;
+  return `<div class="flaga flaga-z-ok"><span>⚠ ${nazwa}${f.cytat ? `: „${h(f.cytat)}”` : ''}</span>
+    <button class="ok-flagi" data-akcja="usunFlage" data-klucz="${h(klucz)}" aria-label="Sprawdzone">✓ OK</button></div>`;
 }
 
 function htmlPunkt(p, pkt) {
   const w = p.punkty[pkt.nr] || {};
   const flagaPunktu = htmlFlagi(p, pkt.nr);
   if (pkt.typ === 'liczby') {
-    return `<div class="punkt">
-      <div class="punkt-nazwa"><b>${pkt.nr}.</b> ${h(pkt.nazwa)}</div>
+    const ai = pkt.pola.some((pl) => zmienioneAI(p).has(`${pkt.nr}.${pl.id}`));
+    return `<div class="punkt ${ai ? 'ai' : ''}">
+      <div class="punkt-nazwa"><b>${pkt.nr}.</b> ${h(pkt.nazwa)}${ai ? znakAI : ''}</div>
       <div class="liczby">
         ${pkt.pola.map((pole) => `<label class="pole maly ${!pole.opcjonalne && !String(w[pole.id] ?? '').trim() ? 'puste' : ''}">${h(pole.etykieta)}${pole.opcjonalne ? ' <span class="opcjonalny">(opcjonalnie)</span>' : ''}
           <input type="text" inputmode="decimal" value="${h(w[pole.id] ?? '')}" data-pole="${pole.id}" data-nr="${pkt.nr}" ${pole.opcjonalne ? 'data-opcjonalne="1"' : ''}>
@@ -262,10 +271,12 @@ function htmlPunkt(p, pkt) {
   }
   const tekstowe = (pkt.polaTekstowe || []).map((pole) => `<label class="pole maly nastawa">${h(pole.etykieta)}
       <input type="text" value="${h(w[pole.id] ?? '')}" data-pole="${pole.id}" data-nr="${pkt.nr}">
+      ${htmlFlagi(p, `${pkt.nr}.${pole.id}`)}
     </label>`).join('');
   const pusty = !w.stan && !pkt.opcjonalny;
-  return `<div class="punkt ${pusty ? 'pusty' : ''}" data-punkt="${pkt.nr}">
-    <div class="punkt-nazwa"><b>${pkt.nr}.</b> ${h(pkt.nazwa)}${pkt.opcjonalny ? ' <span class="opcjonalny">(opcjonalnie)</span>' : ''}</div>
+  const ai = zmienioneAI(p).has(pkt.nr) || zmienioneAI(p).has(`${pkt.nr}.dod`);
+  return `<div class="punkt ${pusty ? 'pusty' : ''} ${ai ? 'ai' : ''}" data-punkt="${pkt.nr}">
+    <div class="punkt-nazwa"><b>${pkt.nr}.</b> ${h(pkt.nazwa)}${pkt.opcjonalny ? ' <span class="opcjonalny">(opcjonalnie)</span>' : ''}${ai ? znakAI : ''}</div>
     <div class="rzad">
       <button class="wybor poz ${w.stan === 'poz' ? 'wybrany' : ''}" data-akcja="punkt" data-nr="${pkt.nr}" data-stan="poz">${h(pkt.pozytywna)}</button>
       <button class="wybor neg ${w.stan === 'neg' ? 'wybrany' : ''}" data-akcja="punkt" data-nr="${pkt.nr}" data-stan="neg">${h(pkt.negatywna)}</button>
@@ -276,8 +287,9 @@ function htmlPunkt(p, pkt) {
 
 function htmlSekcja(p, s) {
   const stan = p.sekcje[s.nr] || null;
+  const ai = zmienioneAI(p).has(s.nr);
   return `<section class="sekcja ${stan ? 'stan-' + stan : 'stan-pusty'}" id="sekcja-${s.nr}">
-    <h3><span class="nr">${s.nr}.</span> ${h(s.nazwa)}</h3>
+    <h3><span class="nr">${s.nr}.</span> ${h(s.nazwa)}${ai ? znakAI : ''}</h3>
     ${htmlFlagi(p, s.nr)}
     <div class="rzad">
       <button class="wybor ok-sekcja" data-akcja="sekcjaOK" data-nr="${s.nr}">✓ Sekcja OK</button>
@@ -316,8 +328,8 @@ function odswiezLicznik() {
   el.className = st.gotowy ? 'licznik ok' : 'licznik';
 }
 
-async function ekranProtokol(id) {
-  const p = await baza.pobierz('protokoly', id);
+async function ekranProtokol(id, gotowy = null) {
+  const p = gotowy || await baza.pobierz('protokoly', id);
   if (!p) return idzDo('#/');
   biezacy = p;
   const przeglad = await baza.pobierz('przeglady', p.przegladId);
@@ -329,7 +341,7 @@ async function ekranProtokol(id) {
   const naglowekPusty = !Object.values(p.naglowek).some((v) => String(v).trim());
   const kandydaci = naglowekPusty ? await kandydaciDoKopii(przeglad) : [];
 
-  const pole = (klucz, etykieta, tryb = 'text') => `<label class="pole">${h(etykieta)}
+  const pole = (klucz, etykieta, tryb = 'text') => `<label class="pole ${zmienioneAI(p).has('naglowek.' + klucz) ? 'ai' : ''}">${h(etykieta)}${zmienioneAI(p).has('naglowek.' + klucz) ? znakAI : ''}
       <input type="text" ${tryb === 'liczba' ? 'inputmode="numeric"' : ''} value="${h(p.naglowek[klucz])}" data-naglowek="${klucz}">
       ${htmlFlagi(p, 'naglowek.' + klucz)}
     </label>`;
@@ -366,11 +378,11 @@ async function ekranProtokol(id) {
         <label class="pole">Data kontroli
           <input type="date" value="${h(p.dataKontroli || przeglad.data)}" data-pole-glowne="dataKontroli">
         </label>
-        <label class="pole">${h(szablon.stopka.terminPrzegladu)}
+        <label class="pole ${zmienioneAI(p).has('termin') ? 'ai' : ''}">${h(szablon.stopka.terminPrzegladu)}${zmienioneAI(p).has('termin') ? znakAI : ''}
           <input type="text" value="${h(p.termin)}" placeholder="np. 05.2027" data-pole-glowne="termin">
           ${htmlFlagi(p, 'termin')}
         </label>
-        <label class="pole">${h(szablon.stopka.uwagi)}
+        <label class="pole ${zmienioneAI(p).has('uwagi') ? 'ai' : ''}">${h(szablon.stopka.uwagi)}${zmienioneAI(p).has('uwagi') ? znakAI : ''}
           <textarea rows="4" data-pole-glowne="uwagi">${h(p.uwagi)}</textarea>
           ${htmlFlagi(p, 'uwagi')}
         </label>
@@ -407,10 +419,99 @@ async function odswiezNagrania() {
         : navigator.onLine || N.trybTestowy() ? `⏳ Czeka na wysłanie (${czas(n.sekundy)})` : `📶 Brak internetu – nagranie (${czas(n.sekundy)}) czeka w telefonie i wyśle się samo`}
     </div>`).join('')}
     ${gotowe.map((tr) => `<div class="nagranie gotowe">
-      <div class="opis">${godzinaPL(tr.kiedy)} · ${h(tr.imie || '')} · ${czas(tr.sekundy || 0)}</div>
+      <div class="opis">${godzinaPL(tr.kiedy)} · ${h(tr.imie || '')} · ${czas(tr.sekundy || 0)} · ${statusAI(tr)}</div>
       <div class="transkrypcja">„${h(tr.tekst)}”</div>
     </div>`).join('')}
+    ${gotowe.length ? `<button class="sredni" data-akcja="ponowAI">🤖 Wypełnij jeszcze raz ze wszystkich nagrań</button>` : ''}
   </section>`;
+  // Karta wyniku AI (nad nagraniami).
+  const a = biezacy.ostatnieAI;
+  if (a && !a.zatwierdzone) {
+    el.insertAdjacentHTML('afterbegin', `<section class="karta karta-ai">
+      <h3>🤖 AI uzupełniło protokół</h3>
+      ${a.podsumowanie ? `<p>${h(a.podsumowanie)}</p>` : ''}
+      <p class="info">Zmienione pola: ${a.zmienione.length}${a.flagi ? ` · <b>⚠ do sprawdzenia / uzupełnienia: ${a.flagi}</b>` : ''}. Pola wypełnione przez AI mają niebieskie tło – popraw dotknięciem, jeśli trzeba. (Oznaczenia nie trafiają do PDF.)</p>
+      <div class="rzad">
+        <button class="sredni" data-akcja="cofnijAI">↶ Cofnij</button>
+        <button class="sredni glowny" data-akcja="zatwierdzAI">✓ Zatwierdź</button>
+      </div>
+    </section>`);
+  }
+}
+
+const aiTrwa = new Set();
+function statusAI(tr) {
+  if (aiTrwa.has(biezacy && biezacy.id) && tr.ai === 'czeka') return '🤖 AI wypełnia protokół…';
+  if (tr.ai === 'gotowe') return '🤖 ✓ uzupełniono';
+  if (tr.ai === 'blad') return `<span class="czerwony">⚠ AI: ${h(tr.aiBlad || 'błąd')}</span>`;
+  if (tr.ai === 'czeka') return navigator.onLine || N.trybTestowy() ? '🤖 czeka na AI' : '📶 AI po powrocie internetu';
+  return '';
+}
+
+// Lista protokołów czekających na AI (np. gdy zabrakło internetu) – tylko w tym telefonie.
+function listaAI() { try { return JSON.parse(localStorage.getItem('aiDoZrobienia') || '[]'); } catch (e) { return []; } }
+function zapamietajAI(id, dodaj) {
+  const l = new Set(listaAI()); dodaj ? l.add(id) : l.delete(id);
+  try { localStorage.setItem('aiDoZrobienia', JSON.stringify([...l])); } catch (e) { /* trudno */ }
+}
+
+// Claude uzupełnia protokół na podstawie transkrypcji, które czekają na AI.
+async function uruchomAI(protokolId, { ponow = false } = {}) {
+  if (aiTrwa.has(protokolId)) return;
+  const otwarty = () => biezacy && biezacy.id === protokolId;
+  const pobierz = async () => (otwarty() ? biezacy : await baza.pobierz('protokoly', protokolId));
+  let p = await pobierz();
+  if (!p) { zapamietajAI(protokolId, false); return; }
+  const doZrobienia = (p.transkrypcje || []).filter((tr) => tr.ai === 'czeka' || (ponow && tr.ai === 'blad'));
+  if (!doZrobienia.length) { zapamietajAI(protokolId, false); return; }
+  const testowy = N.trybTestowy();
+  if (!navigator.onLine && !testowy) { zapamietajAI(protokolId, true); return; }
+  const ids = new Set(doZrobienia.map((tr) => tr.id));
+  const zapisz = async (prot) => {
+    if (otwarty()) {
+      biezacy.niezapisane = true;
+      await zapiszTeraz();
+      const y = window.scrollY;
+      await ekranProtokol(biezacy.id, biezacy);
+      window.scrollTo(0, y);
+    } else {
+      prot.zmieniono = Date.now(); prot.zmienil = C.sesja.konto; prot.zmienilImie = C.sesja.imie;
+      await baza.zapisz('protokoly', prot);
+    }
+  };
+  aiTrwa.add(protokolId); odswiezNagrania();
+  try {
+    const klucze = await N.pobierzKlucze();
+    const { wynik, zuzycie } = await AI.wypelnijZNagran(p, doZrobienia, {
+      klucz: klucze.anthropic, model: klucze.modelAI || AI.MODEL_AI_DOMYSLNY, slownik: await N.wczytajSlownik(), testowy,
+    });
+    p = (await pobierz()) || p; // świeży stan – ktoś mógł w międzyczasie coś zmienić
+    AI.zastosujWynik(p, wynik);
+    p.transkrypcje = p.transkrypcje.map((tr) => (ids.has(tr.id) ? { ...tr, ai: 'gotowe', aiBlad: null } : tr));
+    aiTrwa.delete(protokolId);
+    await zapisz(p);
+    zapamietajAI(protokolId, false);
+    if (zuzycie) N.zapiszZuzycie({ rodzaj: 'ai', ...zuzycie });
+    pokazKomunikat('🤖 AI uzupełniło protokół – sprawdź pola z niebieskim tłem');
+  } catch (e) {
+    console.error(e);
+    aiTrwa.delete(protokolId);
+    if (e.ponawiaj !== false && !(e instanceof TypeError)) {
+      zapamietajAI(protokolId, true); // np. brak sieci – spróbujemy później
+      pokazKomunikat(`🤖 ${e.message}`);
+    } else {
+      p = (await pobierz()) || p;
+      p.transkrypcje = p.transkrypcje.map((tr) => (ids.has(tr.id) ? { ...tr, ai: 'blad', aiBlad: e.message } : tr));
+      await zapisz(p);
+      zapamietajAI(protokolId, false);
+    }
+  } finally {
+    aiTrwa.delete(protokolId);
+    odswiezNagrania();
+  }
+}
+async function przetworzOczekujaceAI() {
+  for (const id of listaAI()) await uruchomAI(id);
 }
 
 // Dopisuje gotową transkrypcję do protokołu (bez nadpisywania innych zmian).
@@ -424,11 +525,14 @@ async function zapiszTranskrypcje(protokolId, wpis) {
     C.F.updateDoc(C.F.doc(C.fs, 'protokoly', protokolId), { transkrypcje: C.F.arrayUnion(wpis) })
       .catch((e) => console.error(e));
   }
+  zapamietajAI(protokolId, true);
+  uruchomAI(protokolId); // od razu: Claude uzupełnia protokół
 }
 
 let czasomierzKolejki = null;
 async function przetworzKolejke(opcje) {
   await N.przetworzKolejke(zapiszTranskrypcje, opcje);
+  await przetworzOczekujaceAI();
   odswiezStanKolejki();
 }
 async function odswiezStanKolejki() {
@@ -524,14 +628,18 @@ async function ekranUstawienia() {
         <label class="pole">Model transkrypcji
           <input type="text" id="modelTranskrypcji" value="${h(klucze.modelTranskrypcji || N.MODEL_DOMYSLNY)}">
         </label>
-        <label class="pole">Klucz Anthropic (Claude – etap 4) – ${ukryj(klucze.anthropic)}
+        <label class="pole">Klucz Anthropic (Claude – wypełnianie protokołu) – ${ukryj(klucze.anthropic)}
           <input type="password" id="kluczAnthropic" placeholder="sk-ant-… (wklej, aby zmienić)" autocomplete="off">
         </label>
         <label class="pole">Klucz Anthropic ważny jeszcze (dni) ${klucze.anthropicWygasa ? `– ${opisWaznosci(klucze.anthropicWygasa)}, do ${P.dataPL(klucze.anthropicWygasa)}` : ''}
           <input type="number" inputmode="numeric" min="0" id="anthropicDni" value="${pozostaloDni(klucze.anthropicWygasa)}" placeholder="puste = nie wygasa">
         </label>
+        <label class="pole">Model AI
+          <input type="text" id="modelAI" value="${h(klucze.modelAI || AI.MODEL_AI_DOMYSLNY)}">
+        </label>
         <button class="duzy glowny" data-akcja="zapiszKlucze">💾 Zapisz</button>
         <button class="sredni" data-akcja="sprawdzOpenai">🔍 Sprawdź klucz OpenAI (bez kosztów)</button>
+        <button class="sredni" data-akcja="sprawdzAnthropic">🔍 Sprawdź klucz Anthropic (bez kosztów)</button>
         <div id="wynikSprawdzenia"></div>
         <p class="info">Limity wydatków: platform.openai.com → Settings → Limits oraz console.anthropic.com → Settings → Limits.</p>
       </section>` : ''}
@@ -803,6 +911,41 @@ async function nowaCentrala(przegladId, zmiany = {}) {
 
 const akcje = {
   nagraj() { rozpocznijNagranie(); },
+  // „✓ OK” przy oznaczeniu „do sprawdzenia” – serwisant potwierdza obecny stan pola.
+  async usunFlage(el) {
+    delete biezacy.flagi[el.dataset.klucz];
+    biezacy.niezapisane = true; await zapiszTeraz();
+    el.closest('.flaga').remove();
+    odswiezLicznik();
+  },
+  async zatwierdzAI() {
+    if (!biezacy.ostatnieAI) return;
+    biezacy.ostatnieAI = { ...biezacy.ostatnieAI, zatwierdzone: true, przed: null };
+    biezacy.niezapisane = true; await zapiszTeraz();
+    const y = window.scrollY; await ekranProtokol(biezacy.id, biezacy); window.scrollTo(0, y);
+  },
+  async cofnijAI() {
+    if (!confirm('Cofnąć wszystkie zmiany wprowadzone przez AI w tym protokole?')) return;
+    AI.cofnijAI(biezacy);
+    biezacy.niezapisane = true; await zapiszTeraz();
+    pokazKomunikat('Cofnięto zmiany AI');
+    const y = window.scrollY; await ekranProtokol(biezacy.id, biezacy); window.scrollTo(0, y);
+  },
+  async ponowAI() {
+    if (!confirm('Wysłać jeszcze raz wszystkie nagrania tego protokołu do AI? (Koszt jak za jedno wypełnienie.)')) return;
+    biezacy.transkrypcje = (biezacy.transkrypcje || []).map((tr) => ({ ...tr, ai: 'czeka' }));
+    biezacy.niezapisane = true; await zapiszTeraz();
+    uruchomAI(biezacy.id);
+  },
+  async sprawdzAnthropic() {
+    const wpisany = document.getElementById('kluczAnthropic').value.trim();
+    const klucz = wpisany || (await N.pobierzKlucze(true)).anthropic;
+    const wynik = document.getElementById('wynikSprawdzenia');
+    if (!klucz) { wynik.innerHTML = '<div class="flaga">Najpierw wklej klucz Anthropic.</div>'; return; }
+    wynik.innerHTML = '<p class="info">Sprawdzam…</p>';
+    const r = await AI.sprawdzKluczAnthropic(klucz, document.getElementById('modelAI').value.trim() || AI.MODEL_AI_DOMYSLNY);
+    wynik.innerHTML = `<div class="${r.ok ? 'karta podpowiedz' : 'flaga'}">${h(r.tekst)}</div>`;
+  },
   async ponowNagranie() { await przetworzKolejke({ tezBledy: true }); odswiezNagrania(); },
   async usunNagranie(el) {
     if (!confirm('Usunąć to nagranie? Nie będzie można go już zamienić na tekst.')) return;
@@ -810,7 +953,10 @@ const akcje = {
     odswiezNagrania(); odswiezStanKolejki();
   },
   async zapiszKlucze() {
-    const zmiany = { modelTranskrypcji: document.getElementById('modelTranskrypcji').value.trim() || N.MODEL_DOMYSLNY };
+    const zmiany = {
+      modelTranskrypcji: document.getElementById('modelTranskrypcji').value.trim() || N.MODEL_DOMYSLNY,
+      modelAI: document.getElementById('modelAI').value.trim() || AI.MODEL_AI_DOMYSLNY,
+    };
     const o = document.getElementById('kluczOpenai').value.trim();
     const a = document.getElementById('kluczAnthropic').value.trim();
     const dniO = document.getElementById('openaiDni').value;

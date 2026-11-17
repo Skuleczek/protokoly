@@ -43,10 +43,14 @@ export function ustawTrybTestowy(wl) {
 }
 
 let slownikCache = null;
-async function podpowiedzSlownika() {
+export async function wczytajSlownik() {
   if (!slownikCache) {
     try { slownikCache = await (await fetch('dane/slownik-startowy.json')).json(); } catch (e) { slownikCache = []; }
   }
+  return slownikCache;
+}
+async function podpowiedzSlownika() {
+  await wczytajSlownik();
   return `Protokół kontroli centrali wentylacyjnej, serwis wentylacji. Terminy: ${slownikCache.join(', ')}.`.slice(0, 900);
 }
 
@@ -174,7 +178,7 @@ async function transkrybuj(wpis) {
 }
 
 // Zapis zużycia (do panelu kosztów administratora).
-function zapiszZuzycie(dane) {
+export function zapiszZuzycie(dane) {
   if (!sesja) return;
   const teraz = new Date();
   const miesiac = `${teraz.getFullYear()}-${String(teraz.getMonth() + 1).padStart(2, '0')}`;
