@@ -257,3 +257,15 @@ h2 { display: flex; align-items: center; justify-content: space-between; }
 .pasek-tlo { background: var(--szary-tlo); border-radius: 6px; height: 14px; overflow: hidden; }
 .pasek-tlo > div { background: var(--niebieski); height: 100%; min-width: 2px; }
 .karta textarea#terminy { font-size: 16px; line-height: 1.5; }
+
+/* Pasek „Jest nowa wersja” */
+#nowaWersja {
+  position: fixed; left: 8px; right: 8px; top: max(8px, env(safe-area-inset-top)); z-index: 50;
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  background: var(--zielony); color: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.25); font-weight: 600;
+}
+#nowaWersja span { flex: 1; }
+#nowaWersja button { min-height: 48px; padding: 0 18px; border: 0; border-radius: 10px; background: #fff; color: var(--zielony); font-weight: 800; font-size: 17px; }
+.kroki { padding-left: 22px; margin: 6px 0; }
+.kroki li { margin: 8px 0; line-height: 1.4; }
+.ikona-ios { display: inline-block; border: 2px solid currentColor; border-radius: 4px; padding: 0 4px; font-size: 13px; }

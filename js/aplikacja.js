@@ -10,6 +10,7 @@
 //   #/zdjecia               – zdjęcia -> jeden plik PDF
 //   #/ustawienia            – tryb testowy (dla wszystkich)
 //   #/administrator, #/klucze, #/koszty, #/slownik, #/kopia, #/testai – ekrany administratora
+//   #/instalacja            – jak dodać aplikację do ekranu głównego
 // ============================================================
 
 import { baza, noweId, poprosOTrwalyZapis, przyBledzieZapisu } from './baza.js';
@@ -18,6 +19,8 @@ import * as C from './chmura.js';
 import * as N from './nagrania.js';
 import * as AI from './ai.js';
 import * as K from './koszty.js';
+import * as PWA from './pwa.js';
+import { WERSJA } from './wersja.js';
 
 const ekran = document.getElementById('app');
 
@@ -113,6 +116,7 @@ async function ekranGrupy() {
       <div class="kto">👤 ${h(C.sesja.imie)}${jestAdminem() ? ' · administrator' : ''}</div>
       <button class="duzy glowny" data-akcja="nowaGrupa">＋ Nowa grupa (klient)</button>
       <a class="duzy przycisk-link" href="#/zdjecia">🖼 Zdjęcia → PDF</a>
+      <div id="instalacjaBaner"></div>
       <div id="stanKolejki"></div>
       <div id="ostrzezeniaKluczy"></div>
       ${grupy.length ? '' : '<p class="pusto">Nie masz jeszcze żadnej grupy. Dodaj pierwszego klienta.</p>'}
@@ -608,6 +612,74 @@ async function ostrzezeniaKluczy() {
 }
 
 // ------------------------------------------------------------
+// INSTALACJA I AKTUALIZACJE (PWA)
+// ------------------------------------------------------------
+const OSTRZEZENIE_IPHONE = 'Na iPhonie dodaj aplikację do ekranu głównego. Bez tego Safari może usuwać dane zapisane w telefonie (np. nagrania czekające na wysłanie i ustawienia).';
+
+function banerInstalacji() {
+  const el = document.getElementById('instalacjaBaner');
+  if (!el || PWA.zainstalowana()) { if (el) el.innerHTML = ''; return; }
+  if (PWA.toIPhone()) {
+    el.innerHTML = `<a class="flaga przycisk-link-flaga" href="#/instalacja">📲 ${h(OSTRZEZENIE_IPHONE)} Dotknij, aby zobaczyć jak.</a>`;
+  } else if (PWA.moznaZainstalowac()) {
+    el.innerHTML = '<button class="duzy" data-akcja="zainstaluj">📲 Zainstaluj aplikację na tym urządzeniu</button>';
+  } else el.innerHTML = '';
+}
+PWA.przyMozliwejInstalacji(() => banerInstalacji());
+
+// Pasek „Jest nowa wersja” – na każdym ekranie.
+function pokazPasekAktualizacji() {
+  if (document.getElementById('nowaWersja')) return;
+  const el = document.createElement('div');
+  el.id = 'nowaWersja';
+  el.innerHTML = '<span>🔄 Jest nowa wersja aplikacji</span><button data-pwa="odswiez">Odśwież</button>';
+  el.querySelector('button').addEventListener('click', async () => {
+    el.querySelector('button').disabled = true;
+    await zapiszTeraz(); // najpierw zapisz to, co jest wypełniane
+    PWA.zastosujNowaWersje();
+  });
+  document.body.appendChild(el);
+}
+PWA.przyNowejWersji(pokazPasekAktualizacji);
+
+function ekranInstalacja() {
+  const status = PWA.zainstalowana() ? '<div class="karta podpowiedz">✓ Aplikacja jest uruchomiona z ikony na ekranie głównym.</div>' : '';
+  ekran.innerHTML = `
+    <header class="pasek"><a class="wstecz" href="#/ustawienia">‹</a><h1>Instalacja</h1></header>
+    <main>
+      ${status}
+      ${PWA.moznaZainstalowac() ? '<button class="duzy glowny" data-akcja="zainstaluj">📲 Zainstaluj teraz</button>' : ''}
+      <section class="karta ${PWA.toAndroid() ? 'podpowiedz' : ''}">
+        <h3>🤖 Android (Chrome)</h3>
+        <ol class="kroki">
+          <li>Otwórz aplikację w <b>Chrome</b>.</li>
+          <li>Dotknij przycisku <b>„📲 Zainstaluj aplikację”</b> na ekranie głównym aplikacji<br>– albo menu <b>⋮</b> (prawy górny róg) → <b>„Zainstaluj aplikację”</b> / <b>„Dodaj do ekranu głównego”</b>.</li>
+          <li>Potwierdź <b>„Zainstaluj”</b>. Ikona „Protokoły” pojawi się na ekranie głównym i w liście aplikacji.</li>
+        </ol>
+      </section>
+      <section class="karta ${PWA.toIPhone() ? 'podpowiedz' : ''}">
+        <h3>🍎 iPhone / iPad (Safari)</h3>
+        <div class="flaga">⚠ ${h(OSTRZEZENIE_IPHONE)}</div>
+        <ol class="kroki">
+          <li>Otwórz aplikację w <b>Safari</b> (nie w Chrome ani w innej przeglądarce).</li>
+          <li>Dotknij ikony <b>Udostępnij</b> – kwadrat ze strzałką w górę <span class="ikona-ios">⬆</span> (na dole ekranu, na iPadzie u góry).</li>
+          <li>Przewiń listę w dół i wybierz <b>„Do ekranu początkowego”</b>.</li>
+          <li>Dotknij <b>„Dodaj”</b>. Od teraz otwieraj aplikację <b>tylko z tej ikony</b>.</li>
+          <li>Po pierwszym uruchomieniu z ikony zaloguj się (jeśli trzeba – poproś administratora o nowy kod).</li>
+        </ol>
+      </section>
+      <section class="karta">
+        <h3>💻 Komputer (Chrome / Edge)</h3>
+        <ol class="kroki">
+          <li>W pasku adresu kliknij ikonę <b>instalacji</b> (monitor ze strzałką) albo menu <b>⋮</b> → <b>„Zainstaluj Protokoły”</b>.</li>
+          <li>Aplikacja otworzy się w osobnym oknie, a skrót pojawi się na pulpicie / w menu Start.</li>
+        </ol>
+      </section>
+      <p class="info">Zainstalowana aplikacja uruchamia się także bez internetu i sama informuje o nowej wersji.</p>
+    </main>`;
+}
+
+// ------------------------------------------------------------
 // EKRAN: ustawienia
 // ------------------------------------------------------------
 async function ekranUstawienia() {
@@ -620,6 +692,12 @@ async function ekranUstawienia() {
         <label class="przelacznik"><input type="checkbox" id="trybTestowy" ${N.trybTestowy() ? 'checked' : ''}> Tryb testowy włączony</label>
       </section>
       <a class="duzy przycisk-link" href="#/slownik">📖 Słownik terminów</a>
+      <section class="karta">
+        <h3>Aplikacja</h3>
+        <p>Wersja: <b>${h(WERSJA)}</b>${PWA.zainstalowana() ? ' · zainstalowana ✓' : ''}</p>
+        <button class="sredni" data-akcja="sprawdzAktualizacje">🔄 Sprawdź aktualizację</button>
+        <a class="sredni przycisk-link" href="#/instalacja">📲 ${PWA.zainstalowana() ? 'Instalacja na innym urządzeniu' : 'Jak zainstalować na telefonie'}</a>
+      </section>
     </main>`;
 }
 
@@ -1095,6 +1173,17 @@ async function nowaCentrala(przegladId, zmiany = {}) {
 }
 
 const akcje = {
+  async zainstaluj() {
+    const ok = await PWA.zainstaluj();
+    pokazKomunikat(ok ? 'Instalacja rozpoczęta ✓' : 'Instalację anulowano');
+    banerInstalacji();
+  },
+  async sprawdzAktualizacje() {
+    if (!navigator.onLine) return pokazKomunikat('Brak internetu – sprawdź później');
+    pokazKomunikat('Sprawdzam…');
+    const jest = await PWA.sprawdzAktualizacje();
+    if (!jest) pokazKomunikat('Masz najnowszą wersję ✓');
+  },
   async ustawSaldo(el) {
     const serwis = el.dataset.serwis;
     const wartosc = parseFloat(document.getElementById(`saldo-${serwis}`).value.replace(',', '.'));
@@ -1601,7 +1690,8 @@ async function pokaz() {
   else if (rodzaj === 'koszty') await ekranKoszty();
   else if (rodzaj === 'slownik') await ekranSlownik();
   else if (rodzaj === 'kopia') await ekranKopia();
-  else { await ekranGrupy(); odswiezStanKolejki(); ostrzezeniaKluczy(); }
+  else if (rodzaj === 'instalacja') ekranInstalacja();
+  else { await ekranGrupy(); odswiezStanKolejki(); ostrzezeniaKluczy(); banerInstalacji(); }
 }
 
 window.addEventListener('hashchange', async () => { await pokaz(); window.scrollTo(0, 0); });
@@ -1612,6 +1702,7 @@ przyBledzieZapisu((e) => {
 });
 
 (async function start() {
+  PWA.uruchom(); // zapis aplikacji w telefonie (offline) i aktualizacje
   await P.wczytajSzablon();
   poprosOTrwalyZapis();
   await startLogowania();
