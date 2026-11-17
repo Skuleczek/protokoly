@@ -38,6 +38,23 @@ function pokazKomunikat(tekst) {
 const jestAdminem = () => !!(C.sesja && C.sesja.admin);
 const mozeUsunacProtokol = (p) => jestAdminem() || (C.sesja && p.autor === C.sesja.konto);
 
+// Ile dni zostało do daty "RRRR-MM-DD" (ujemne = po terminie).
+function dniDo(dataIso) {
+  if (!dataIso) return null;
+  const [r, m, d] = dataIso.split('-').map(Number);
+  const cel = new Date(r, m - 1, d);
+  const dzis = new Date(); dzis.setHours(0, 0, 0, 0);
+  return Math.round((cel - dzis) / 86400000);
+}
+function opisWaznosci(dataIso) {
+  const dni = dniDo(dataIso);
+  if (dni === null) return '';
+  if (dni < 0) return `<b class="czerwony">⛔ wygasł ${-dni} dni temu</b>`;
+  if (dni <= 14) return `<b class="pomaranczowy">⚠ wygasa za ${dni} dni</b>`;
+  return `pozostało ${dni} dni`;
+}
+const za90Dni = () => { const d = new Date(Date.now() + 90 * 86400000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+
 function godzinaPL(ms) {
   if (!ms) return '';
   const d = new Date(ms);
@@ -86,6 +103,7 @@ async function ekranGrupy() {
       <button class="duzy glowny" data-akcja="nowaGrupa">＋ Nowa grupa (klient)</button>
       <a class="duzy przycisk-link" href="#/zdjecia">🖼 Zdjęcia → PDF</a>
       <div id="stanKolejki"></div>
+      <div id="ostrzezeniaKluczy"></div>
       ${grupy.length ? '' : '<p class="pusto">Nie masz jeszcze żadnej grupy. Dodaj pierwszego klienta.</p>'}
       <ul class="lista">
         ${grupy.map((g) => `
@@ -459,6 +477,19 @@ async function rozpocznijNagranie() {
   });
 }
 
+// Administrator: ostrzeżenie o kończącej się ważności kluczy API.
+async function ostrzezeniaKluczy() {
+  if (!jestAdminem()) return;
+  const k = await N.pobierzKlucze();
+  const teksty = [['OpenAI', k.openai && k.openaiWygasa], ['Anthropic', k.anthropic && k.anthropicWygasa]]
+    .filter(([, data]) => data && dniDo(data) <= 14)
+    .map(([nazwa, data]) => (dniDo(data) < 0
+      ? `⛔ Klucz ${nazwa} wygasł – nagrania/AI nie działają. Wygeneruj nowy klucz i wpisz go w Ustawieniach.`
+      : `⚠ Klucz ${nazwa} wygasa za ${dniDo(data)} dni (${P.dataPL(data)}) – wygeneruj nowy i wpisz w Ustawieniach.`));
+  const el = document.getElementById('ostrzezeniaKluczy');
+  if (el) el.innerHTML = teksty.map((x) => `<a class="flaga przycisk-link-flaga" href="#/ustawienia">${h(x)}</a>`).join('');
+}
+
 // ------------------------------------------------------------
 // EKRAN: ustawienia
 // ------------------------------------------------------------
@@ -479,11 +510,17 @@ async function ekranUstawienia() {
         <label class="pole">Klucz OpenAI (transkrypcja) – ${ukryj(klucze.openai)}
           <input type="password" id="kluczOpenai" placeholder="sk-… (wklej, aby zmienić)" autocomplete="off">
         </label>
+        <label class="pole">Klucz OpenAI wygasa dnia ${opisWaznosci(klucze.openaiWygasa) ? `– ${opisWaznosci(klucze.openaiWygasa)}` : ''}
+          <input type="date" id="openaiWygasa" value="${h(klucze.openaiWygasa || '')}">
+        </label>
         <label class="pole">Model transkrypcji
           <input type="text" id="modelTranskrypcji" value="${h(klucze.modelTranskrypcji || N.MODEL_DOMYSLNY)}">
         </label>
         <label class="pole">Klucz Anthropic (Claude – etap 4) – ${ukryj(klucze.anthropic)}
           <input type="password" id="kluczAnthropic" placeholder="sk-ant-… (wklej, aby zmienić)" autocomplete="off">
+        </label>
+        <label class="pole">Klucz Anthropic wygasa dnia (puste = nie wygasa) ${opisWaznosci(klucze.anthropicWygasa) ? `– ${opisWaznosci(klucze.anthropicWygasa)}` : ''}
+          <input type="date" id="anthropicWygasa" value="${h(klucze.anthropicWygasa || '')}">
         </label>
         <button class="duzy glowny" data-akcja="zapiszKlucze">💾 Zapisz</button>
         <button class="sredni" data-akcja="sprawdzOpenai">🔍 Sprawdź klucz OpenAI (bez kosztów)</button>
@@ -768,7 +805,10 @@ const akcje = {
     const zmiany = { modelTranskrypcji: document.getElementById('modelTranskrypcji').value.trim() || N.MODEL_DOMYSLNY };
     const o = document.getElementById('kluczOpenai').value.trim();
     const a = document.getElementById('kluczAnthropic').value.trim();
-    if (o) zmiany.openai = o;
+    zmiany.openaiWygasa = document.getElementById('openaiWygasa').value;
+    zmiany.anthropicWygasa = document.getElementById('anthropicWygasa').value;
+    // Nowy klucz OpenAI bez podanej daty -> domyślnie 90 dni (tak jak ustawiasz w panelu OpenAI).
+    if (o) { zmiany.openai = o; if (!zmiany.openaiWygasa) zmiany.openaiWygasa = za90Dni(); }
     if (a) zmiany.anthropic = a;
     try {
       await N.zapiszKlucze(zmiany);
@@ -1096,7 +1136,7 @@ async function pokaz() {
   else if (rodzaj === 'pdf') await ekranWyboruPdf(id, location.hash.split('/')[3]);
   else if (rodzaj === 'zdjecia') ekranZdjecia();
   else if (rodzaj === 'ustawienia') await ekranUstawienia();
-  else { await ekranGrupy(); odswiezStanKolejki(); }
+  else { await ekranGrupy(); odswiezStanKolejki(); ostrzezeniaKluczy(); }
 }
 
 window.addEventListener('hashchange', async () => { await pokaz(); window.scrollTo(0, 0); });

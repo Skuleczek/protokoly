@@ -144,7 +144,7 @@ async function wyslijDoOpenAI(wpis, klucz, model) {
   if (odp.ok) return (await odp.json()).text || '';
   let szczegoly = '';
   try { szczegoly = ((await odp.json()).error || {}).message || ''; } catch (e) { /* brak treści */ }
-  if (odp.status === 401) throw new BladTranskrypcji('Nieprawidłowy klucz OpenAI – administrator musi go poprawić w Ustawieniach.', { ponawiaj: false });
+  if (odp.status === 401) throw new BladTranskrypcji('Klucz OpenAI jest nieprawidłowy albo wygasł – administrator musi wpisać nowy w Ustawieniach.', { ponawiaj: false });
   if (odp.status === 429) throw new BladTranskrypcji(/quota|billing|credit/i.test(szczegoly) ? 'Brak środków na koncie OpenAI – trzeba doładować.' : 'OpenAI: za dużo zapytań – spróbuję za chwilę.', { ponawiaj: !/quota|billing|credit/i.test(szczegoly) });
   if (odp.status === 400 || odp.status === 404) {
     const e = new BladTranskrypcji(`OpenAI odrzuciło nagranie: ${szczegoly || odp.status}`, { ponawiaj: false });
@@ -238,7 +238,7 @@ export async function sprawdzKluczOpenAI(klucz, model) {
   try {
     const odp = await fetch(`${ADRES_OPENAI}/models/${encodeURIComponent(model)}`, { headers: { Authorization: `Bearer ${klucz}` } });
     if (odp.ok) return { ok: true, tekst: `✓ Klucz działa, model „${model}” jest dostępny.` };
-    if (odp.status === 401) return { ok: false, tekst: '✗ Klucz nieprawidłowy.' };
+    if (odp.status === 401) return { ok: false, tekst: '✗ Klucz nieprawidłowy albo wygasł.' };
     if (odp.status === 404) return { ok: false, tekst: `✗ Klucz działa, ale model „${model}” nie istnieje. Spróbuj „${MODEL_ZAPASOWY}”.` };
     return { ok: false, tekst: `✗ OpenAI odpowiedziało błędem ${odp.status}.` };
   } catch (e) {

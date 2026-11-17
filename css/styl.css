@@ -232,3 +232,6 @@ h2 { display: flex; align-items: center; justify-content: space-between; }
 /* Przycisk wyboru plików (prawdziwe pole pliku pod spodem – niezawodne na Androidzie) */
 .wybor-pliku { position: relative; overflow: hidden; cursor: pointer; }
 .wybor-pliku input[type=file] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 0; }
+.czerwony { color: var(--czerwony); }
+.pomaranczowy { color: #a35f00; }
+.przycisk-link-flaga { display: block; text-decoration: none; margin: 8px 0; }
