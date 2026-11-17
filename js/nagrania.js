@@ -56,11 +56,18 @@ export async function wczytajSlownik(odswiez = false) {
     try { d = await F.getDocFromCache(ref); } catch (e2) { d = null; }
   }
   const terminy = d && d.exists() && Array.isArray(d.data().terminy) ? d.data().terminy : null;
+  slownikZmiana = d && d.exists() && d.data().zmienilImie
+    ? { imie: d.data().zmienilImie, kiedy: d.data().zmieniono ? d.data().zmieniono.toMillis() : Date.now() } : null;
   slownikCache = terminy || await slownikStartowy();
   return slownikCache;
 }
+let slownikZmiana = null;
+export const ktoZmienilSlownik = () => slownikZmiana;
+// Słownik może zmieniać każdy członek zespołu – zapamiętujemy, kto zmienił ostatnio.
 export async function zapiszSlownik(terminy) {
-  await F.setDoc(F.doc(fs, 'wspolne', 'slownik'), { terminy, zmieniono: F.serverTimestamp() });
+  await F.setDoc(F.doc(fs, 'wspolne', 'slownik'), {
+    terminy, zmieniono: F.serverTimestamp(), zmienil: sesja.konto, zmienilImie: sesja.imie,
+  });
   slownikCache = terminy;
 }
 async function podpowiedzSlownika() {

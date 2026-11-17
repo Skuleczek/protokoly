@@ -199,7 +199,7 @@ async function ekranPrzeglad(id) {
           return `<li class="z-koszem"><a class="wiersz" href="#/protokol/${p.id}">
             <span class="tytul">${i + 1}. ${h(P.opisCentrali(p))}</span>
             <span class="opis">nr fabr. ${h(p.naglowek.nrFabr || '–')} ${plakietka}</span>
-            <span class="opis">👤 ${h(p.autorImie || '–')}</span>
+            <span class="opis">👤 ${h(p.autorImie || '–')}${p.zmienilImie && p.zmienil !== p.autor ? ` · edytował: ${h(p.zmienilImie)}` : ''}</span>
           </a>${mozeUsunacProtokol(p) ? `<button class="kosz" data-akcja="usunZListy" data-id="${p.id}" aria-label="Usuń protokół">🗑</button>` : ''}</li>`;
         }).join('')}
       </ul>
@@ -362,7 +362,7 @@ async function ekranProtokol(id, gotowy = null) {
           <span class="opis">nr fabr. ${h(k.protokol.naglowek.nrFabr || '–')} · ${P.dataPL(k.przeglad.data)}</span></button>`).join('')}
       </div>` : ''}
 
-      <p class="autor">👤 Wykonał: <b>${h(p.autorImie || '–')}</b>${p.zmienilImie && p.zmieniono ? ` · ostatnia zmiana: ${h(p.zmienilImie)}, ${godzinaPL(p.zmieniono)}` : ''}</p>
+      <p class="autor">👤 Utworzył: <b>${h(p.autorImie || '–')}</b>${p.zmienilImie && p.zmieniono ? ` · edytował: <b>${h(p.zmienilImie)}</b>, ${godzinaPL(p.zmieniono)}` : ''}</p>
       <div id="nagrania"></div>
       <section class="karta">
         ${pole('typ', 'TYP CENTRALI')}
@@ -619,6 +619,7 @@ async function ekranUstawienia() {
         <p class="info">Na tym urządzeniu nagrania i AI są udawane – możesz ćwiczyć bez żadnych kosztów. Do prawdziwej pracy wyłącz.</p>
         <label class="przelacznik"><input type="checkbox" id="trybTestowy" ${N.trybTestowy() ? 'checked' : ''}> Tryb testowy włączony</label>
       </section>
+      <a class="duzy przycisk-link" href="#/slownik">📖 Słownik terminów</a>
     </main>`;
 }
 
@@ -633,7 +634,6 @@ function ekranAdministrator() {
       <a class="duzy przycisk-link" href="#/uzytkownicy">👥 Użytkownicy i kody</a>
       <a class="duzy przycisk-link" href="#/koszty">💰 Koszty i zużycie</a>
       <a class="duzy przycisk-link" href="#/klucze">🔑 Klucze API</a>
-      <a class="duzy przycisk-link" href="#/slownik">📖 Słownik terminów</a>
       <a class="duzy przycisk-link" href="#/kopia">💾 Kopia zapasowa</a>
       <a class="duzy przycisk-link" href="#/testai">🧪 Test jakości AI</a>
       <div id="ostrzezeniaKluczy"></div>
@@ -746,15 +746,16 @@ async function ekranKoszty() {
 // EKRAN: słownik terminów (administrator)
 // ------------------------------------------------------------
 async function ekranSlownik() {
-  if (!jestAdminem()) return idzDo('#/');
   const terminy = await N.wczytajSlownik(true);
+  const kto = N.ktoZmienilSlownik();
   ekran.innerHTML = `
-    <header class="pasek"><a class="wstecz" href="#/administrator">‹</a><h1>Słownik terminów</h1></header>
+    <header class="pasek"><a class="wstecz" href="#/ustawienia">‹</a><h1>Słownik terminów</h1></header>
     <main class="formularz">
       <p class="info">Nazwy producentów, modele central, skróty i żargon – <b>jeden termin w linii</b>. Słownik pomaga w rozpoznawaniu mowy i w rozumieniu nagrań przez AI. Wspólny dla całego zespołu.</p>
       <label class="pole">Terminy (<span id="ileTerminow">${terminy.length}</span>)
         <textarea id="terminy" rows="18">${h(terminy.join('\n'))}</textarea>
       </label>
+      ${kto ? `<p class="info">Ostatnia zmiana: ${h(kto.imie)}, ${godzinaPL(kto.kiedy)}</p>` : ''}
       <button class="sredni" data-akcja="slownikStartowy">↺ Przywróć listę startową</button>
     </main>
     <footer class="dolny"><button class="duzy glowny" data-akcja="zapiszSlownik">💾 Zapisz słownik</button></footer>`;
@@ -871,7 +872,7 @@ async function ekranWyboruPdf(rodzaj, id) {
             return `<label class="wiersz wybor-pdf">
               <input type="checkbox" checked data-pdf="${p.id}" data-przeglad="${pg.id}">
               <span><span class="tytul">${h(P.opisCentrali(p))}</span>
-              <span class="opis">nr fabr. ${h(p.naglowek.nrFabr || '–')} · 👤 ${h(p.autorImie || '–')}
+              <span class="opis">nr fabr. ${h(p.naglowek.nrFabr || '–')} · 👤 ${h(p.autorImie || '–')}${p.zmienilImie && p.zmienil !== p.autor ? `, edytował: ${h(p.zmienilImie)}` : ''}
                 ${st.gotowy ? '<span class="plakietka ok">✓</span>' : `<span class="plakietka brak">braki: ${st.brakuje + st.flagi}</span>`}</span></span>
             </label>`;
           }).join('')}`;
@@ -1123,7 +1124,7 @@ const akcje = {
     try {
       const dane = { aplikacja: 'Protokoły kontroli', wersja: 1, utworzono: new Date().toISOString(), autor: C.sesja.imie };
       for (const k of KOLEKCJE_KOPII) dane[k] = (await C.F.getDocs(C.F.collection(C.fs, k))).docs.map((d) => d.data());
-      const plik = new File([JSON.stringify(dane)], `Kopia protokołów ${P.dataPL(P.dzisiaj())}.json`, { type: 'application/json' });
+      const plik = new File([JSON.stringify(dane)], `Kopia protokolow ${P.dataPL(P.dzisiaj())}.json`, { type: 'application/json' });
       try { localStorage.setItem('ostatniaKopia', String(Date.now())); } catch (e) { /* trudno */ }
       pokazGotowyPlik(plik, `✓ Kopia gotowa: ${dane.protokoly.length} protokołów`);
       ekranKopia();

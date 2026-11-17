@@ -105,7 +105,12 @@ service cloud.firestore {
       allow write: if admin();
     }
 
-    // ---------- dane wspólne dla zespołu (np. słownik terminów) ----------
+    // ---------- dane wspólne dla zespołu ----------
+    // Słownik terminów: czyta i zmienia każdy członek zespołu (zapisywane jest, kto zmienił).
+    match /wspolne/slownik {
+      allow read: if czlonek();
+      allow write: if czlonek() && request.resource.data.zmienil == mojeKontoId();
+    }
     match /wspolne/{id} {
       allow read: if czlonek();
       allow write: if admin();
