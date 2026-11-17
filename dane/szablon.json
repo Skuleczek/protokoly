@@ -63,7 +63,8 @@
      "dodatkowe": {
       "typ": "wartosc",
       "etykieta": "nastawa"
-     }
+     },
+     "opcjonalny": true
     },
     {
      "nr": "1.5",
@@ -74,7 +75,13 @@
      "dodatkowe": {
       "typ": "zaznacz",
       "etykieta": "do wymiany"
-     }
+     },
+     "polaTekstowe": [
+      {
+       "id": "rozmiar",
+       "etykieta": "rozmiar łożyska"
+      }
+     ]
     },
     {
      "nr": "1.6",
@@ -134,7 +141,8 @@
      "dodatkowe": {
       "typ": "wartosc",
       "etykieta": "nastawa"
-     }
+     },
+     "opcjonalny": true
     },
     {
      "nr": "2.5",
@@ -145,7 +153,13 @@
      "dodatkowe": {
       "typ": "zaznacz",
       "etykieta": "do wymiany"
-     }
+     },
+     "polaTekstowe": [
+      {
+       "id": "rozmiar",
+       "etykieta": "rozmiar łożyska"
+      }
+     ]
     },
     {
      "nr": "2.6",

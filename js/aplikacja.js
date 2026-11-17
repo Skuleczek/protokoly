@@ -201,13 +201,17 @@ function htmlPunkt(p, pkt) {
       ${htmlFlagi(p, `${pkt.nr}.dod`)}
     </label>`;
   }
-  return `<div class="punkt ${w.stan ? '' : 'pusty'}">
-    <div class="punkt-nazwa"><b>${pkt.nr}.</b> ${h(pkt.nazwa)}</div>
+  const tekstowe = (pkt.polaTekstowe || []).map((pole) => `<label class="pole maly nastawa">${h(pole.etykieta)}
+      <input type="text" value="${h(w[pole.id] ?? '')}" data-pole="${pole.id}" data-nr="${pkt.nr}">
+    </label>`).join('');
+  const pusty = !w.stan && !pkt.opcjonalny;
+  return `<div class="punkt ${pusty ? 'pusty' : ''}" data-punkt="${pkt.nr}">
+    <div class="punkt-nazwa"><b>${pkt.nr}.</b> ${h(pkt.nazwa)}${pkt.opcjonalny ? ' <span class="opcjonalny">(opcjonalnie)</span>' : ''}</div>
     <div class="rzad">
       <button class="wybor poz ${w.stan === 'poz' ? 'wybrany' : ''}" data-akcja="punkt" data-nr="${pkt.nr}" data-stan="poz">${h(pkt.pozytywna)}</button>
       <button class="wybor neg ${w.stan === 'neg' ? 'wybrany' : ''}" data-akcja="punkt" data-nr="${pkt.nr}" data-stan="neg">${h(pkt.negatywna)}</button>
     </div>
-    ${dodatkowe}${flagaPunktu}
+    ${dodatkowe}${tekstowe}${flagaPunktu}
   </div>`;
 }
 
@@ -231,6 +235,18 @@ function odswiezSekcje(nrSekcji) {
   const el = document.getElementById(`sekcja-${nrSekcji}`);
   if (el) el.outerHTML = htmlSekcja(biezacy, s);
   odswiezLicznik();
+}
+
+// Odświeża tylko przyciski punktu (bez przerysowania – żeby nie zamknąć klawiatury).
+function odswiezPrzyciskiPunktu(nr) {
+  const w = biezacy.punkty[nr] || {};
+  const div = document.querySelector(`[data-punkt="${nr}"]`);
+  div.querySelectorAll('[data-akcja=punkt]').forEach((b) => b.classList.toggle('wybrany', b.dataset.stan === w.stan));
+  const nrS = nr.split('.')[0];
+  const sek = document.getElementById(`sekcja-${nrS}`);
+  const stan = biezacy.sekcje[nrS];
+  sek.className = `sekcja ${stan ? 'stan-' + stan : 'stan-pusty'}`;
+  sek.querySelectorAll('[data-akcja=sekcja]').forEach((b) => b.classList.toggle('wybrany', b.dataset.wartosc === stan));
 }
 
 function odswiezLicznik() {
@@ -263,9 +279,9 @@ async function ekranProtokol(id) {
     <header class="pasek">
       <a class="wstecz" href="#/przeglad/${p.przegladId}">‹</a>
       <h1>Centrala ${numer}/${wszystkie.length}</h1>
-      <span id="licznik" class="licznik"></span>
+      <button id="licznik" class="licznik" data-akcja="doBraku"></button>
     </header>
-    <main class="formularz">
+    <main class="formularz ${p.zapisany ? 'pokaz-braki' : ''}">
       ${kandydaci.length ? `<div class="karta podpowiedz">
         <b>Ta sama centrala co w poprzednim przeglądzie?</b> Dotknij, aby skopiować typ, nr fabr., rok i oznaczenie:
         ${kandydaci.slice(0, 8).map((k) => `<button class="wiersz" data-akcja="wezNaglowek" data-zrodlo="${k.protokol.id}">
@@ -406,6 +422,16 @@ const akcje = {
     odswiezSekcje(el.dataset.nr.split('.')[0]);
     zapiszZaChwile();
   },
+  // Przewija do pierwszego niezaznaczonego miejsca.
+  doBraku() {
+    document.querySelector('main').classList.add('pokaz-braki');
+    const el = document.querySelector('.sekcja.stan-pusty, .punkt.pusty, .pole.puste');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('mignij');
+      setTimeout(() => el.classList.remove('mignij'), 1200);
+    }
+  },
   async doListy() {
     await zapiszTeraz();
     idzDo(`#/przeglad/${biezacy.przegladId}`);
@@ -443,7 +469,8 @@ ekran.addEventListener('input', (e) => {
     delete biezacy.flagi[el.dataset.poleGlowne];
   } else if (el.dataset.pole) {
     P.ustawPole(biezacy, el.dataset.nr, el.dataset.pole, el.value);
-    el.closest('.pole').classList.toggle('puste', !el.value.trim());
+    if (el.dataset.pole === 'dod') odswiezPrzyciskiPunktu(el.dataset.nr);
+    else if (el.closest('.liczby')) el.closest('.pole').classList.toggle('puste', !el.value.trim());
   } else return;
   odswiezLicznik();
   zapiszZaChwile();
@@ -467,6 +494,8 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) zapis
 // Przełączanie ekranów
 // ------------------------------------------------------------
 async function pokaz() {
+  // Wychodząc z protokołu zapamiętaj, że był już zapisany – przy powrocie braki będą wyróżnione.
+  if (biezacy && !location.hash.includes(biezacy.id)) biezacy.zapisany = true;
   await zapiszTeraz();
   const [rodzaj, id] = location.hash.replace(/^#\/?/, '').split('/');
   if (rodzaj !== 'protokol') biezacy = null;

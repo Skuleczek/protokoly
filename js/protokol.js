@@ -87,7 +87,7 @@ export function sekcjaOK(p, nr) {
   p.sekcje[nr] = 'jest';
   usunFlagi(p, nr);
   for (const pkt of s.punkty) {
-    if (pkt.typ !== 'wybor') continue;
+    if (pkt.typ !== 'wybor' || pkt.opcjonalny) continue; // punkt opcjonalny (np. 1.4) – bez zmian
     const w = wpisPunktu(p, pkt.nr);
     w.stan = 'poz';
     if (pkt.dodatkowe && pkt.dodatkowe.typ === 'zaznacz') w.dod = false;
@@ -104,6 +104,7 @@ export function ustawSekcje(p, nr, wartosc) {
 export function ustawPunkt(p, nr, stan) {
   const w = wpisPunktu(p, nr);
   w.stan = w.stan === stan ? null : stan;
+  w.auto = false; // wybór ręczny
   // Dotknięcie punktu oznacza, że sekcja istnieje.
   const s = sekcjaPunktu(nr);
   if (!p.sekcje[s]) p.sekcje[s] = 'jest';
@@ -120,12 +121,24 @@ export function przelaczDodatkowe(p, nr) {
   usunFlagi(p, nr);
 }
 
-// Pola tekstowe: "nastawa" (pole "dod") i pola liczbowe (pobor, znamionowy, bezpiecznik).
+// Pola tekstowe: "nastawa" (pole "dod"), "rozmiar" łożyska
+// i pola liczbowe (pobor, znamionowy, bezpiecznik).
 export function ustawPole(p, nr, pole, wartosc) {
   const w = wpisPunktu(p, nr);
   w[pole] = wartosc;
   usunFlagi(p, `${nr}.${pole}`);
-  if (pole === 'dod') usunFlagi(p, nr);
+  if (pole === 'dod') {
+    usunFlagi(p, nr);
+    // Punkt opcjonalny (1.4, 2.4): wpisanie nastawy zaznacza "poprawne" (można zmienić),
+    // skasowanie nastawy cofa takie automatyczne zaznaczenie.
+    if (znajdzPunkt(nr).opcjonalny) {
+      const wpisano = String(wartosc).trim() !== '';
+      if (wpisano && !w.stan) { w.stan = 'poz'; w.auto = true; }
+      if (!wpisano && w.auto) { w.stan = null; w.auto = false; }
+      const s = sekcjaPunktu(nr);
+      if (wpisano && !p.sekcje[s]) p.sekcje[s] = 'jest';
+    }
+  }
 }
 
 // Kopiuje z innego protokołu tylko informację, które sekcje są, a których brak.
@@ -143,7 +156,7 @@ export function postep(p) {
     for (const pkt of s.punkty) {
       const w = p.punkty[pkt.nr] || {};
       if (pkt.typ === 'wybor') {
-        if (!w.stan) brakuje++;
+        if (!w.stan && !pkt.opcjonalny) brakuje++;
       } else {
         for (const pole of pkt.pola) if (!String(w[pole.id] ?? '').trim()) brakuje++;
       }
