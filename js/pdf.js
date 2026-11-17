@@ -160,18 +160,25 @@ function rysujProtokol(pdf, f, p, obiekt) {
         continue;
       }
       t.tekst(`${pkt.nr}.`, K.nrPrawa, y, { wyr: 'prawo' });
-      let xNazwy = K.nazwa + t.tekst(pkt.nazwa, K.nazwa, y, { maxSzer: K.kratka1 - K.nazwa - 4 });
-      // Dodatkowe pola tekstowe (np. rozmiar łożyska) – obok nazwy, tylko gdy wpisane.
-      for (const pole of pkt.polaTekstowe || []) {
-        const wart = String(w[pole.id] ?? '').trim();
-        if (!wart) continue;
-        xNazwy += t.tekst(' – rozm. ', xNazwy, y);
-        xNazwy += t.tekst(wart, xNazwy, y, { czc: f.b, maxSzer: K.kratka1 - xNazwy - 3 });
-      }
+      t.tekst(pkt.nazwa, K.nazwa, y, { maxSzer: K.kratka1 - K.nazwa - 4 });
+      // Rozmiar łożyska (pole tekstowe) – wpisywany w kratkę "do wymiany".
+      const rozmiar = (pkt.polaTekstowe || []).map((pl) => String(w[pl.id] ?? '').trim()).filter(Boolean).join(' ');
       t.kratka(K.kratka1, y, w.stan === 'poz'); t.tekst(pkt.pozytywna, K.opis1, y);
       t.kratka(K.kratka2, y, w.stan === 'neg'); t.tekst(pkt.negatywna, K.opis2, y);
       const d = pkt.dodatkowe;
-      if (d && d.typ === 'zaznacz') {
+      if (d && d.typ === 'zaznacz' && rozmiar) {
+        // Kratka z rozmiarem; gdy zaznaczone "do wymiany" – mały krzyżyk z lewej.
+        t.prostokat(K.dod, y - 1, K.dodSzer, 8);
+        let x0 = K.dod + 1;
+        if (w.dod) {
+          t.linia(K.dod + 1.2, y + 0.4, K.dod + 5.8, y + 5.6, 0.9);
+          t.linia(K.dod + 1.2, y + 5.6, K.dod + 5.8, y + 0.4, 0.9);
+          x0 = K.dod + 7;
+        }
+        const x1 = K.dod + K.dodSzer - 1;
+        t.tekst(rozmiar, (x0 + x1) / 2, y - 0.3, { czc: f.b, roz: 6.8, wyr: 'srodek', maxSzer: x1 - x0 });
+        t.tekst(d.etykieta, K.opisDod, y);
+      } else if (d && d.typ === 'zaznacz') {
         t.kratka(K.dod, y, !!w.dod, K.dodSzer);
         t.tekst(d.etykieta, K.opisDod, y);
       } else if (d && d.typ === 'wartosc') {
@@ -193,10 +200,8 @@ function rysujProtokol(pdf, f, p, obiekt) {
   // --- data i podpis (miejsce na podpis odręczny; w przyszłości obrazek podpisu)
   let yS = dol + 2;
   const wEt = t.tekst(sz.stopka.podpis, K.nazwa, yS, { czc: f.bi, roz: 8.5, podkr: true });
-  const opisDaty = [dataPL(p.dataKontroli), p.autorImie ? `wykonał: ${p.autorImie}` : ''].filter(Boolean).join(', ');
-  t.tekst(opisDaty, K.nazwa + wEt + 8, yS, { roz: 8.5 });
-  t.linia(400, yS + 16, K.prawa, yS + 16, 0.5);           // linia na podpis
-  t.tekst('podpis', (400 + K.prawa) / 2, yS + 18, { roz: 5.5, wyr: 'srodek' });
+  t.tekst(dataPL(p.dataKontroli), K.nazwa + wEt + 8, yS, { roz: 8.5 });
+  // Podpis odręczny – wolne miejsce pod tabelą (przerwa w dolnej ramce, jak w oryginale).
   if (p.podpis) {
     // Miejsce na przyszły podpis palcem (obrazek PNG w p.podpis) – rysowany nad linią.
   }

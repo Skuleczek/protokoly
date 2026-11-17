@@ -7,6 +7,7 @@
 //   #/protokol/ID           – formularz protokołu
 //   #/uzytkownicy           – osoby i kody (tylko administrator)
 //   #/pdf/przeglad/ID, #/pdf/grupa/ID – wybór protokołów do PDF
+//   #/zdjecia               – zdjęcia -> jeden plik PDF
 // ============================================================
 
 import { baza, noweId, poprosOTrwalyZapis, przyBledzieZapisu } from './baza.js';
@@ -81,6 +82,7 @@ async function ekranGrupy() {
     <main>
       <div class="kto">👤 ${h(C.sesja.imie)}${jestAdminem() ? ' · administrator' : ''}</div>
       <button class="duzy glowny" data-akcja="nowaGrupa">＋ Nowa grupa (klient)</button>
+      <a class="duzy przycisk-link" href="#/zdjecia">🖼 Zdjęcia → PDF</a>
       ${grupy.length ? '' : '<p class="pusto">Nie masz jeszcze żadnej grupy. Dodaj pierwszego klienta.</p>'}
       <ul class="lista">
         ${grupy.map((g) => `
@@ -458,6 +460,68 @@ function pokazGotowyPdf(plik) {
 }
 
 // ------------------------------------------------------------
+// ZDJĘCIA -> PDF (wszystko w telefonie, bez kosztów)
+// ------------------------------------------------------------
+let zdjecia = []; // [{ id, plik, mini }] – kolejność = kolejność stron
+let dodawanieZdjec = Promise.resolve();
+
+function ekranZdjecia() {
+  ekran.innerHTML = `
+    <header class="pasek"><a class="wstecz" href="#/">‹</a><h1>Zdjęcia → PDF</h1></header>
+    <main class="formularz">
+      <p class="info">Każde zdjęcie to osobna strona A4 (poziome zdjęcie = pozioma strona). Bez limitu zdjęć, bez znaków wodnych. Nic nie jest wysyłane do internetu.</p>
+      <div class="rzad">
+        <button class="duzy glowny" data-akcja="zdjDodaj">🖼 Z galerii</button>
+        <button class="duzy" data-akcja="zdjAparat">📷 Aparat</button>
+      </div>
+      <input type="file" id="wybierzZdjecia" accept="image/*" multiple hidden>
+      <input type="file" id="zrobZdjecie" accept="image/*" capture="environment" hidden>
+      <label class="pole">Nazwa pliku
+        <input type="text" id="nazwaZdjec" value="Zdjecia_${P.dataPL(P.dzisiaj()).replace(/\./g, '-')}">
+      </label>
+      <div id="listaZdjec"></div>
+    </main>
+    <footer class="dolny">
+      <button class="duzy glowny" data-akcja="zdjPdf" id="przyciskZdjPdf"></button>
+    </footer>`;
+  odswiezZdjecia();
+}
+
+function odswiezZdjecia() {
+  const lista = document.getElementById('listaZdjec');
+  if (!lista) return;
+  lista.innerHTML = zdjecia.length ? `
+    <h2>Zdjęcia (${zdjecia.length}) <button class="maly-link" data-akcja="zdjWyczysc">usuń wszystkie</button></h2>
+    <div class="siatka-zdjec">
+      ${zdjecia.map((z, i) => `<div class="zdjecie">
+        ${z.mini ? `<img src="${z.mini}" alt="">` : '<div class="laduje">…</div>'}
+        <div class="nr-strony">${i + 1}</div>
+        <div class="zdj-przyciski">
+          <button data-akcja="zdjPrzesun" data-i="${i}" data-o="-1" ${i === 0 ? 'disabled' : ''} aria-label="Wcześniej">◀</button>
+          <button data-akcja="zdjUsun" data-i="${i}" aria-label="Usuń">✕</button>
+          <button data-akcja="zdjPrzesun" data-i="${i}" data-o="1" ${i === zdjecia.length - 1 ? 'disabled' : ''} aria-label="Później">▶</button>
+        </div>
+      </div>`).join('')}
+    </div>` : '<p class="pusto">Dodaj zdjęcia z galerii albo zrób je aparatem.</p>';
+  const b = document.getElementById('przyciskZdjPdf');
+  if (b) { b.textContent = `📄 Utwórz PDF (${zdjecia.length})`; b.disabled = !zdjecia.length; }
+}
+
+function dodajZdjecia(pliki) {
+  const nowe = [...pliki].filter((p) => p.type.startsWith('image/') || /\.(jpe?g|png|heic|webp)$/i.test(p.name))
+    .map((plik) => ({ id: noweId(), plik, mini: null }));
+  zdjecia.push(...nowe);
+  odswiezZdjecia();
+  // Miniatury po kolei (oszczędza pamięć telefonu).
+  dodawanieZdjec = dodawanieZdjec.then(async () => {
+    for (const z of nowe) {
+      try { z.mini = await (await import('./zdjecia.js')).miniatura(z.plik); } catch (e) { z.mini = ''; }
+      odswiezZdjecia();
+    }
+  });
+}
+
+// ------------------------------------------------------------
 // EKRANY LOGOWANIA
 // ------------------------------------------------------------
 function ekranLogowania(stan, blad = '') {
@@ -548,6 +612,41 @@ async function nowaCentrala(przegladId, zmiany = {}) {
 }
 
 const akcje = {
+  zdjDodaj() { document.getElementById('wybierzZdjecia').click(); },
+  zdjAparat() { document.getElementById('zrobZdjecie').click(); },
+  zdjPrzesun(el) {
+    const i = +el.dataset.i, j = i + +el.dataset.o;
+    if (j < 0 || j >= zdjecia.length) return;
+    [zdjecia[i], zdjecia[j]] = [zdjecia[j], zdjecia[i]];
+    odswiezZdjecia();
+  },
+  zdjUsun(el) {
+    const [z] = zdjecia.splice(+el.dataset.i, 1);
+    if (z && z.mini) URL.revokeObjectURL(z.mini);
+    odswiezZdjecia();
+  },
+  zdjWyczysc() {
+    if (!confirm('Usunąć wszystkie zdjęcia z listy? (Zdjęcia w galerii telefonu zostają.)')) return;
+    zdjecia.forEach((z) => z.mini && URL.revokeObjectURL(z.mini));
+    zdjecia = [];
+    odswiezZdjecia();
+  },
+  async zdjPdf() {
+    if (!zdjecia.length) return;
+    const b = document.getElementById('przyciskZdjPdf');
+    const nazwa = (document.getElementById('nazwaZdjec').value.trim() || 'Zdjecia').replace(/[\\/:*?"<>|]+/g, '_');
+    b.disabled = true;
+    try {
+      const { zdjeciaDoPdf } = await import('./zdjecia.js');
+      const bajty = await zdjeciaDoPdf(zdjecia.map((z) => z.plik), (n, w) => { b.textContent = `⏳ Przetwarzam ${n} / ${w}…`; });
+      pokazGotowyPdf(new File([bajty], nazwa.toLowerCase().endsWith('.pdf') ? nazwa : `${nazwa}.pdf`, { type: 'application/pdf' }));
+    } catch (e) {
+      console.error(e);
+      alert('Nie udało się utworzyć PDF: ' + e.message);
+    }
+    b.disabled = false;
+    odswiezZdjecia();
+  },
   pdfWszystkie(el) {
     wyborPdf.wybrane = new Set(el.dataset.wartosc ? wyborPdf.protokoly.map((p) => p.id) : []);
     odswiezLicznikPdf();
@@ -775,6 +874,11 @@ ekran.addEventListener('input', (e) => {
 // Zmiana daty przeglądu / zaznaczenie protokołu do PDF.
 ekran.addEventListener('change', async (e) => {
   const el = e.target;
+  if ((el.id === 'wybierzZdjecia' || el.id === 'zrobZdjecie') && el.files.length) {
+    dodajZdjecia(el.files);
+    el.value = '';
+    return;
+  }
   if (el.dataset.pdf && wyborPdf) {
     el.checked ? wyborPdf.wybrane.add(el.dataset.pdf) : wyborPdf.wybrane.delete(el.dataset.pdf);
     odswiezLicznikPdf();
@@ -809,6 +913,7 @@ async function pokaz() {
   else if (rodzaj === 'protokol') await ekranProtokol(id);
   else if (rodzaj === 'uzytkownicy') { ostatniKod = null; await ekranUzytkownicy(); }
   else if (rodzaj === 'pdf') await ekranWyboruPdf(id, location.hash.split('/')[3]);
+  else if (rodzaj === 'zdjecia') ekranZdjecia();
   else await ekranGrupy();
 }
 
