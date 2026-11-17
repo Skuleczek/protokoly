@@ -628,10 +628,29 @@ function ekranAdministrator() {
     <main>
       <a class="duzy przycisk-link" href="#/uzytkownicy">👥 Użytkownicy i kody</a>
       <a class="duzy przycisk-link" href="#/klucze">🔑 Klucze API</a>
+      <a class="duzy przycisk-link" href="#/testai">🧪 Test jakości AI</a>
       <div id="ostrzezeniaKluczy"></div>
       <p class="info">Wkrótce: 💰 koszty i zużycie (etap 5).</p>
     </main>`;
   ostrzezeniaKluczy();
+}
+
+// ------------------------------------------------------------
+// EKRAN: test jakości AI (administrator)
+// ------------------------------------------------------------
+let raportTestuAI = '';
+async function ekranTestAI() {
+  if (!jestAdminem()) return idzDo('#/');
+  const T = await import('./testy-ai.js');
+  ekran.innerHTML = `
+    <header class="pasek"><a class="wstecz" href="#/administrator">‹</a><h1>Test jakości AI</h1></header>
+    <main class="formularz">
+      <p>Aplikacja wyśle do Claude <b>${T.SCENARIUSZE.length} przykładowych wypowiedzi</b> serwisanta i sprawdzi, czy wypełnienie zgadza się z zasadami
+      (cała sekcja OK, wyjątki, „brak”, liczby, żargon, niejasności, poprawki, termin, uwagi).</p>
+      <p class="info">Koszt jednego testu: ok. 1 zł (klucz Anthropic z „Klucze API”). Nie zmienia żadnych protokołów.</p>
+      <button class="duzy glowny" data-akcja="uruchomTestAI" id="przyciskTestuAI">▶ Uruchom test</button>
+      <div id="wynikiTestu"></div>
+    </main>`;
 }
 
 async function ekranKlucze() {
@@ -935,6 +954,68 @@ async function nowaCentrala(przegladId, zmiany = {}) {
 }
 
 const akcje = {
+  async uruchomTestAI() {
+    const T = await import('./testy-ai.js');
+    const przycisk = document.getElementById('przyciskTestuAI');
+    const wyniki = document.getElementById('wynikiTestu');
+    const klucze = await N.pobierzKlucze(true);
+    if (!klucze.anthropic) { wyniki.innerHTML = '<div class="flaga">Brak klucza Anthropic – wpisz go w „Klucze API”.</div>'; return; }
+    const model = klucze.modelAI || AI.MODEL_AI_DOMYSLNY;
+    const slownik = await N.wczytajSlownik();
+    przycisk.disabled = true;
+    let html = ''; let ok = 0; let wszystkie = 0;
+    const tokeny = { wejscie: 0, wyjscie: 0, cacheOdczyt: 0, cacheZapis: 0 };
+    const linie = [`RAPORT TESTU AI – model ${model}, ${godzinaPL(Date.now())}`];
+    for (const [i, sc] of T.SCENARIUSZE.entries()) {
+      przycisk.textContent = `⏳ ${i + 1} / ${T.SCENARIUSZE.length}: ${sc.nazwa}…`;
+      const p = T.protokolTestowy(sc);
+      let oceny; let wynik = null; let blad = '';
+      try {
+        const r = await AI.wypelnijZNagran(p, [{ tekst: sc.tekst }], { klucz: klucze.anthropic, model, slownik, testowy: false });
+        wynik = r.wynik;
+        if (r.zuzycie) { for (const k of Object.keys(tokeny)) tokeny[k] += r.zuzycie[k]; N.zapiszZuzycie({ rodzaj: 'ai-test', ...r.zuzycie }); }
+        AI.zastosujWynik(p, wynik);
+        oceny = T.ocen(sc, p);
+      } catch (e) {
+        blad = e.message;
+        oceny = sc.sprawdz.map(([opis]) => ({ opis, ok: false }));
+      }
+      const dobre = oceny.filter((o) => o.ok).length;
+      ok += dobre; wszystkie += oceny.length;
+      const calosc = dobre === oceny.length;
+      html += `<section class="karta ${calosc ? '' : 'test-zle'}">
+        <h3>${calosc ? '✅' : '❌'} ${i + 1}. ${h(sc.nazwa)}</h3>
+        <p class="info">${h(sc.zasada)}</p>
+        <p class="transkrypcja">„${h(sc.tekst)}”</p>
+        ${blad ? `<div class="flaga">${h(blad)}</div>` : ''}
+        ${oceny.map((o) => `<div>${o.ok ? '✅' : '❌'} ${h(o.opis)}</div>`).join('')}
+        ${wynik && wynik.podsumowanie ? `<p class="info">AI: ${h(wynik.podsumowanie)}</p>` : ''}
+      </section>`;
+      linie.push(`\n${calosc ? 'OK ' : 'ŹLE'} ${i + 1}. ${sc.nazwa} – „${sc.tekst}”`);
+      oceny.filter((o) => !o.ok).forEach((o) => linie.push(`   ✗ ${o.opis}`));
+      if (blad) linie.push(`   BŁĄD: ${blad}`);
+      if (!calosc && wynik) linie.push(`   Odpowiedź AI: ${JSON.stringify(wynik)}`);
+      wyniki.innerHTML = html;
+    }
+    const koszt = (tokeny.wejscie * 2 + tokeny.cacheOdczyt * 0.1 + tokeny.cacheZapis * 2.5 + tokeny.wyjscie * 10) / 1e6;
+    linie.splice(1, 0, `Wynik: ${ok} / ${wszystkie} sprawdzeń poprawnych. Tokeny: wejście ${tokeny.wejscie}, cache odczyt ${tokeny.cacheOdczyt}, cache zapis ${tokeny.cacheZapis}, wyjście ${tokeny.wyjscie} (≈ ${koszt.toFixed(3)} USD)`);
+    raportTestuAI = linie.join('\n');
+    wyniki.insertAdjacentHTML('afterbegin', `<section class="karta karta-ai">
+      <h3>Wynik: ${ok} / ${wszystkie} sprawdzeń poprawnych</h3>
+      <p class="info">Szacowany koszt testu: ok. ${koszt.toFixed(3)} USD · cache: ${tokeny.cacheOdczyt ? 'działa ✓' : 'brak odczytów'}</p>
+      <button class="duzy glowny" data-akcja="kopiujRaportAI">📋 Kopiuj raport</button>
+      <p class="info">Wklej raport w rozmowie z Claude – na jego podstawie zostanie poprawiona instrukcja dla AI.</p>
+    </section>`);
+    przycisk.disabled = false; przycisk.textContent = '▶ Uruchom test ponownie';
+  },
+  async kopiujRaportAI() {
+    try { await navigator.clipboard.writeText(raportTestuAI); pokazKomunikat('Skopiowano raport ✓'); } catch (e) {
+      const pole = document.createElement('textarea');
+      pole.value = raportTestuAI; pole.rows = 12; pole.style.width = '100%';
+      document.getElementById('wynikiTestu').prepend(pole); pole.select();
+      pokazKomunikat('Zaznacz tekst i skopiuj ręcznie');
+    }
+  },
   nagraj() { rozpocznijNagranie(); },
   // „✓ OK” przy oznaczeniu „do sprawdzenia” – serwisant potwierdza obecny stan pola.
   async usunFlage(el) {
@@ -1318,6 +1399,7 @@ async function pokaz() {
   else if (rodzaj === 'ustawienia') await ekranUstawienia();
   else if (rodzaj === 'administrator') ekranAdministrator();
   else if (rodzaj === 'klucze') await ekranKlucze();
+  else if (rodzaj === 'testai') await ekranTestAI();
   else { await ekranGrupy(); odswiezStanKolejki(); ostrzezeniaKluczy(); }
 }
 

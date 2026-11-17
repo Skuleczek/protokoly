@@ -246,3 +246,4 @@ h2 { display: flex; align-items: center; justify-content: space-between; }
 .flaga-z-ok { display: flex; align-items: center; gap: 8px; }
 .flaga-z-ok span { flex: 1; }
 .ok-flagi { flex: 0 0 auto; min-height: 44px; min-width: 64px; border: 2px solid #c79100; border-radius: 8px; background: #fff; color: #5a4300; font-weight: 700; }
+.test-zle { border-color: var(--czerwony); border-left: 6px solid var(--czerwony); }
