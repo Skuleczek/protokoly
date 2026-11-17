@@ -354,15 +354,15 @@ async function ekranProtokol(id) {
 function ekranLogowania(stan, blad = '') {
   const tresci = {
     logowanie: `
-      <p>Wpisz swoje imię i nazwisko oraz <b>6-cyfrowy kod</b> otrzymany od administratora.</p>
-      <label class="pole">Imię i nazwisko <input id="logImie" type="text" autocomplete="name"></label>
+      <p>Wpisz swoje <b>imię</b> oraz <b>6-cyfrowy kod</b> otrzymany od administratora.</p>
+      <label class="pole">Imię <input id="logImie" type="text" autocomplete="given-name"></label>
       <label class="pole">Kod <input id="logKod" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></label>
       <button class="duzy glowny" data-akcja="zaloguj">Zaloguj</button>
       <p class="info">Kod działa jeden raz. Na nowym telefonie lub komputerze poproś administratora o nowy kod.</p>`,
     pierwszeKonto: `
       <p><b>Pierwsze uruchomienie.</b> Baza jest pusta – zakładasz konto <b>administratora</b>.
       Tylko administrator może dodawać kolejne osoby i wydawać im kody.</p>
-      <label class="pole">Twoje imię i nazwisko <input id="logImie" type="text" autocomplete="name"></label>
+      <label class="pole">Twoje imię <input id="logImie" type="text" autocomplete="given-name"></label>
       <button class="duzy glowny" data-akcja="zalozAdmina">Załóż konto administratora</button>`,
     zablokowane: `<p>⛔ To konto zostało <b>zablokowane</b> przez administratora.</p>
       <button class="duzy" data-akcja="sprobujPonownie">Sprawdź ponownie</button>`,
@@ -442,7 +442,7 @@ const akcje = {
   async zaloguj() {
     const imie = document.getElementById('logImie').value;
     const kod = document.getElementById('logKod').value;
-    if (!imie.trim() || kod.replace(/\D/g, '').length !== 6) return ekranLogowania('logowanie', 'Wpisz imię i nazwisko oraz 6 cyfr kodu.');
+    if (!imie.trim() || kod.replace(/\D/g, '').length !== 6) return ekranLogowania('logowanie', 'Wpisz imię oraz 6 cyfr kodu.');
     try {
       const w = await C.zalogujKodem(imie, kod);
       if (w.stan === 'ok') { pokazKomunikat(`Witaj, ${C.sesja.imie}!`); idzDo('#/'); return pokaz(); }
@@ -465,7 +465,7 @@ const akcje = {
   },
   sprobujPonownie() { startLogowania(); },
   async dodajOsobe() {
-    const imie = prompt('Imię i nazwisko nowej osoby (np. „Jan Kowalski”):');
+    const imie = prompt('Imię nowej osoby (np. „Jan”). Gdy dwie osoby mają to samo imię, dodaj literę nazwiska, np. „Jan K.”:');
     if (!imie || !imie.trim()) return;
     try {
       const id = await C.dodajKonto(imie);

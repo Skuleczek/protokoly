@@ -145,7 +145,7 @@ export async function listaKont() {
 
 export async function dodajKonto(imie) {
   const id = idKonta(imie);
-  if (!id) throw new Error('Wpisz imię i nazwisko.');
+  if (!id) throw new Error('Wpisz imię.');
   const istnieje = await F.getDoc(F.doc(fs, 'konta', id));
   if (istnieje.exists()) throw new Error(`Osoba „${istnieje.data().imie}” już istnieje. Wygeneruj jej nowy kod.`);
   await F.setDoc(F.doc(fs, 'konta', id), { imie: imie.trim(), admin: false, aktywny: true, utworzono: F.serverTimestamp() });
