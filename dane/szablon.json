@@ -98,7 +98,8 @@
       },
       {
        "id": "bezpiecznik",
-       "etykieta": "nastawa bezpiecznika [A]"
+       "etykieta": "nastawa bezpiecznika [A]",
+       "opcjonalne": true
       }
      ]
     }
@@ -176,7 +177,8 @@
       },
       {
        "id": "bezpiecznik",
-       "etykieta": "nastawa bezpiecznika [A]"
+       "etykieta": "nastawa bezpiecznika [A]",
+       "opcjonalne": true
       }
      ]
     }
@@ -208,7 +210,8 @@
      "nazwa": "Przepustnice powietrza recyrkulacyjnego",
      "typ": "wybor",
      "pozytywna": "sprawne",
-     "negatywna": "niesprawne"
+     "negatywna": "niesprawne",
+     "opcjonalny": true
     }
    ]
   },

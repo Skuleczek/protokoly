@@ -158,7 +158,9 @@ export function postep(p) {
       if (pkt.typ === 'wybor') {
         if (!w.stan && !pkt.opcjonalny) brakuje++;
       } else {
-        for (const pole of pkt.pola) if (!String(w[pole.id] ?? '').trim()) brakuje++;
+        for (const pole of pkt.pola) {
+          if (!pole.opcjonalne && !String(w[pole.id] ?? '').trim()) brakuje++;
+        }
       }
     }
   }

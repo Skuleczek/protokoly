@@ -158,3 +158,11 @@ button.licznik { border: 0; color: #fff; font: inherit; font-size: 14px; min-hei
 .pokaz-braki .pole.puste input { border-color: #e08a00; border-width: 3px; }
 .mignij { animation: mignij 1.2s; }
 @keyframes mignij { 0%, 50% { box-shadow: 0 0 0 6px #ffb300; } 100% { box-shadow: none; } }
+
+/* Lista central z przyciskiem usuwania */
+.z-koszem { display: flex; gap: 8px; align-items: stretch; }
+.z-koszem .wiersz { flex: 1; min-width: 0; }
+.kosz {
+  flex: 0 0 60px; margin: 8px 0; border-radius: 12px; font-size: 24px;
+  border: 2px solid var(--czerwony); background: #fff; color: var(--czerwony);
+}

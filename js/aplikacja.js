@@ -140,10 +140,10 @@ async function ekranPrzeglad(id) {
           const st = P.postep(p);
           const plakietka = st.gotowy ? '<span class="plakietka ok">✓ gotowy</span>'
             : `<span class="plakietka brak">${st.brakuje ? `brakuje ${st.brakuje}` : ''}${st.flagi ? ` ⚠ ${st.flagi}` : ''}</span>`;
-          return `<li><a class="wiersz" href="#/protokol/${p.id}">
+          return `<li class="z-koszem"><a class="wiersz" href="#/protokol/${p.id}">
             <span class="tytul">${i + 1}. ${h(P.opisCentrali(p))}</span>
             <span class="opis">nr fabr. ${h(p.naglowek.nrFabr || '–')} ${plakietka}</span>
-          </a></li>`;
+          </a><button class="kosz" data-akcja="usunZListy" data-id="${p.id}" aria-label="Usuń protokół">🗑</button></li>`;
         }).join('')}
       </ul>
       <div class="opcje">
@@ -184,8 +184,8 @@ function htmlPunkt(p, pkt) {
     return `<div class="punkt">
       <div class="punkt-nazwa"><b>${pkt.nr}.</b> ${h(pkt.nazwa)}</div>
       <div class="liczby">
-        ${pkt.pola.map((pole) => `<label class="pole maly ${!String(w[pole.id] ?? '').trim() ? 'puste' : ''}">${h(pole.etykieta)}
-          <input type="text" inputmode="decimal" value="${h(w[pole.id] ?? '')}" data-pole="${pole.id}" data-nr="${pkt.nr}">
+        ${pkt.pola.map((pole) => `<label class="pole maly ${!pole.opcjonalne && !String(w[pole.id] ?? '').trim() ? 'puste' : ''}">${h(pole.etykieta)}${pole.opcjonalne ? ' <span class="opcjonalny">(opcjonalnie)</span>' : ''}
+          <input type="text" inputmode="decimal" value="${h(w[pole.id] ?? '')}" data-pole="${pole.id}" data-nr="${pkt.nr}" ${pole.opcjonalne ? 'data-opcjonalne="1"' : ''}>
           ${htmlFlagi(p, `${pkt.nr}.${pole.id}`)}
         </label>`).join('')}
       </div>${flagaPunktu}
@@ -441,6 +441,13 @@ const akcje = {
     pokazKomunikat('Zapisano ✓');
     await nowaCentrala(biezacy.przegladId, { termin: biezacy.termin });
   },
+  async usunZListy(el) {
+    const p = await baza.pobierz('protokoly', el.dataset.id);
+    if (!confirm(`Usunąć protokół „${P.opisCentrali(p)}”? Tego nie da się cofnąć.`)) return;
+    await baza.usun('protokoly', p.id);
+    pokazKomunikat('Usunięto protokół');
+    pokaz();
+  },
   async usunProtokol() {
     if (!confirm('Usunąć ten protokół?')) return;
     const przegladId = biezacy.przegladId;
@@ -470,7 +477,7 @@ ekran.addEventListener('input', (e) => {
   } else if (el.dataset.pole) {
     P.ustawPole(biezacy, el.dataset.nr, el.dataset.pole, el.value);
     if (el.dataset.pole === 'dod') odswiezPrzyciskiPunktu(el.dataset.nr);
-    else if (el.closest('.liczby')) el.closest('.pole').classList.toggle('puste', !el.value.trim());
+    else if (el.closest('.liczby') && !el.dataset.opcjonalne) el.closest('.pole').classList.toggle('puste', !el.value.trim());
   } else return;
   odswiezLicznik();
   zapiszZaChwile();
