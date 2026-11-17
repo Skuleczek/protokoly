@@ -1,0 +1,2 @@
+anthropic.js zawiera oficjalną bibliotekę Anthropic TypeScript SDK (@anthropic-ai/sdk, wersja 1.10.0) – licencja Apache 2.0
+(niektóre dołączone fragmenty – licencja MIT). Teksty licencji znajdują się na końcu pliku anthropic.js.
