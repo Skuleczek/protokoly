@@ -33,7 +33,7 @@
 
 ## 3. Struktura projektu
 - `index.html`: jedna strona, manifest, ikony, `js/aplikacja.js`.
-- `js/aplikacja.js`: **wszystkie ekrany** (routing po `location.hash`: `#/`, `#/grupa/ID`, `#/przeglad/ID`, `#/protokol/ID`, `#/pdf/przeglad|grupa/ID`, `#/zdjecia`, `#/ustawienia`, `#/slownik`, `#/instalacja`, `#/administrator`, `#/uzytkownicy`, `#/klucze`, `#/koszty`, `#/kopia`, `#/testai`). Przyciski mają `data-akcja="…"`, a obsługę zapewnia obiekt `akcje` (delegacja kliknięć). Tekst użytkownika zawsze przez `h()` (escapowanie).
+- `js/aplikacja.js`: **wszystkie ekrany** (routing po `location.hash`: `#/`, `#/grupa/ID`, `#/przeglad/ID`, `#/protokol/ID`, `#/pdf/przeglad|grupa/ID`, `#/zdjecia`, `#/ustawienia`, `#/slownik`, `#/instalacja`, `#/administrator`, `#/uzytkownicy`, `#/klucze`, `#/koszty`, `#/kopia`, `#/testai`, `#/zmiany`). Przyciski mają `data-akcja="…"`, a obsługę zapewnia obiekt `akcje` (delegacja kliknięć). Tekst użytkownika zawsze przez `h()` (escapowanie).
 - `js/protokol.js`: logika protokołu (szablon, „Sekcja OK”, opcjonalne, postęp/braki, `nowyProtokol`).
 - `js/baza.js`: dostęp do danych. Kolekcje `grupy/przeglady/protokoly` idą do Firestore (zapis bez czekania na serwer, odczyt z limitem 4 s i powrotem do pamięci podręcznej). `ustawienia/nagrania` są lokalnie w IndexedDB `protokoly`, a gdy IndexedDB nie działa, w pamięci.
 - `js/chmura.js`: init Firebase, sesja, logowanie kodem, pierwsze konto administratora, operacje administratora (konta, kody, blokada). Ma tryb awaryjny `memoryLocalCache`, gdy IndexedDB nie działa (np. Safari prywatne).
@@ -43,6 +43,9 @@
 - `js/testy-ai.js`: 13 scenariuszy „Test jakości AI” (ostatni wynik u użytkownika: 38/38; od dodania pola pomieszczenia jest 39 sprawdzeń).
 - `js/pdf.js`: PDF protokołu. Wymiary zmierzone z oryginału (stała `K`). **Nie pokazuje oznaczeń AI ani flag.**
 - `js/zdjecia.js`, `js/skaner.js`, `js/edytor-zdjecia.js`: Zdjęcia → PDF i skaner. Edytor `edytujZdjecia(lista, start)` obsługuje wszystkie zdjęcia (strzałki ◀/▶, „Zastosuj filtr dla wszystkich”, Anuluj odrzuca całą edycję). Filtr jest osobny dla każdego zdjęcia, a chipy na ekranie głównym ustawiają filtr dla nowych zdjęć. „👁 Podgląd” pokazuje strony A4 (`ukladStrony` wspólny z PDF) (wykrywanie kartki, homografia, filtry `oryginal|kontrast|szarosc|dokument|czarnobialy`, obrót).
+- `js/zdjecia-przegladu.js`: zdjęcia dołączone do przeglądu (dodawanie, lista, usuwanie, PDF bez filtrów przez `jpgDoPdf`).
+- `js/zapis.js`: miejsce zapisu plików (`pobrane|pytaj|folder`, File System Access; uchwyt folderu w IndexedDB `ustawienia/folderPdf`; na iPhonie tylko „pobrane”).
+- `dane/zmiany.json`: lista zmian (Ustawienia → Co nowego, pasek „Jest nowa wersja”). **Przy każdej publikacji dopisz na górze wpis `"wersja": "NOWA"`** z prostym opisem nowości; `publikuj.sh` wpisze numer wersji. Pasek czyta listę z pamięci (cache) nowej wersji.
 - `js/koszty.js`: podsumowanie zużycia, szacowane saldo i data końca środków.
 - `js/pwa.js`, `sw.js`, `manifest.json`, `ikony/`: instalacja, offline, pasek „Jest nowa wersja”. `js/wersja.js` jest generowany automatycznie.
 - `dane/szablon.json`: struktura protokołu (jedno źródło dla formularza, PDF i AI). `dane/slownik-startowy.json`: startowy słownik.
@@ -62,9 +65,10 @@
   - `sekrety/klucze`: klucze API i modele, ważność kluczy (**opcja A**: czytają wszyscy członkowie, pisze administrator),
   - `wspolne/slownik`: terminy; czyta i pisze każdy członek, podpisany polem `zmienil`,
   - `admin/budzet`: saldo, kurs; tylko administrator,
+  - `zdjecia/{id}` {przegladId, grupaId, mini (dataURL ≤ 60 KB), szer, wys, rozmiar, autor, autorImie, utworzono} i `zdjeciaDane/{id}` {dane: dataURL JPEG ≤ ~650 KB, max 1600 px}; tworzy członek jako autor, bez edycji, usuwa autor lub administrator. Nie ma ich w kopii zapasowej (za duże). Limit Firestore 1 GB – licznik w Koszty → „Policz miejsce”,
   - `zuzycie/{id}`: rodzaj transkrypcja|ai|ai-test, tokeny/sekundy, konto, miesiac, kiedy.
 - Uprawnienia: wszyscy członkowie widzą i edytują wszystkie protokoły. Usuwać mogą autor (własne) i administrator (wszystko: grupy, przeglądy, cudze). Autora nie da się podmienić. Zablokowane konto natychmiast traci dostęp.
-- **Każda zmiana `firestore.rules` wymaga, by użytkownik wkleił plik w Firebase → Firestore Database → Rules → Publish.** Zawsze mu o tym przypomnij. Przed wysłaniem przetestuj reguły na emulatorze (ostatnio 55/55).
+- **Każda zmiana `firestore.rules` wymaga, by użytkownik wkleił plik w Firebase → Firestore Database → Rules → Publish.** Zawsze mu o tym przypomnij. Przed wysłaniem przetestuj reguły na emulatorze (ostatnio 55/55 + 18/18 dla zdjęć). `@firebase/rules-unit-testing` instaluj w osobnym folderze niż firebase-tools (konflikt wersji).
 
 ## 5. Uruchamianie, testy, publikacja
 - Lokalnie: `python3 -m http.server 8123` w folderze repo → `http://localhost:8123/`. Dodatek `?emulator=1` (tylko na localhost) łączy z emulatorami (auth 9099, firestore 8180).

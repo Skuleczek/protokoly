@@ -7,12 +7,13 @@
 // Dane (protokoły) NIE są tu zapisywane – tym zajmuje się Firebase.
 // ============================================================
 
-const WERSJA = '2026.11.18-2041'; // @wersja
+const WERSJA = '2026.11.18-2101'; // @wersja
 const PLIKI = [ // @pliki-start
   './',
   './css/styl.css',
   './dane/slownik-startowy.json',
   './dane/szablon.json',
+  './dane/zmiany.json',
   './ikony/apple-touch-icon.png',
   './ikony/favicon-32.png',
   './ikony/ikona-192.png',
@@ -33,6 +34,8 @@ const PLIKI = [ // @pliki-start
   './js/skaner.js',
   './js/testy-ai.js',
   './js/wersja.js',
+  './js/zapis.js',
+  './js/zdjecia-przegladu.js',
   './js/zdjecia.js',
   './lib/anthropic.js',
   './lib/czcionki/LiberationSans-Bold.ttf',

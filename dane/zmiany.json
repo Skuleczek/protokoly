@@ -1,0 +1,42 @@
+[
+ {
+  "wersja": "2026.11.18-2101",
+  "zmiany": [
+   "Zdjęcia przeglądu: przycisk „📷 Dodaj zdjęcia” na ekranie przeglądu. Zdjęcia widzi cały zespół.",
+   "„🖼 PDF zdjęć” – wszystkie zdjęcia przeglądu w osobnym pliku PDF (bez filtrów i przycinania).",
+   "Ustawienia → „📁 Miejsce zapisu PDF”: Pobrane, pytaj za każdym razem albo stały folder (tam, gdzie telefon na to pozwala).",
+   "Lista nowości na pasku „Jest nowa wersja” i w Ustawieniach → „📋 Co nowego”."
+  ]
+ },
+ {
+  "wersja": "2026.11.18-2041",
+  "zmiany": [
+   "Zdjęcia → PDF: przycisk „✏ Edytuj zdjęcia” i przechodzenie strzałkami do kolejnego zdjęcia.",
+   "Filtr osobno dla każdego zdjęcia oraz przycisk „Zastosuj filtr dla wszystkich zdjęć”.",
+   "„👁 Podgląd” – strony PDF ze zdjęciami przed utworzeniem pliku."
+  ]
+ },
+ {
+  "wersja": "2026.11.18-2031",
+  "zmiany": [
+   "Nowe pole „Pomieszczenie / piętro” obok oznaczenia (opcjonalne), w PDF w wierszu OZNACZENIE.",
+   "AI rozpoznaje piętro z nagrania, np. „piętro minus jeden” → -1."
+  ]
+ },
+ {
+  "wersja": "2026.11.18-1024",
+  "zmiany": [
+   "Poprawki logowania na iPhonie: kod ze spacją, imię bez autokorekty, dokładniejsze komunikaty błędów."
+  ]
+ },
+ {
+  "wersja": "2026.11.17",
+  "zmiany": [
+   "Pierwsze wersje: protokoły w grupach i przeglądach, wspólna baza i logowanie kodem.",
+   "PDF jak oryginalny protokół (pojedynczy, z przeglądu, z grupy).",
+   "Nagrania głosowe: transkrypcja i wypełnianie protokołu przez AI.",
+   "Panel administratora: użytkownicy, klucze API, koszty, kopia zapasowa, test AI.",
+   "Instalacja na telefonie, praca bez zasięgu, Zdjęcia → PDF ze skanerem."
+  ]
+ }
+]

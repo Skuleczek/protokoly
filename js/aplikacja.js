@@ -8,6 +8,7 @@
 //   #/uzytkownicy           – osoby i kody (tylko administrator)
 //   #/pdf/przeglad/ID, #/pdf/grupa/ID – wybór protokołów do PDF
 //   #/zdjecia               – zdjęcia -> jeden plik PDF
+//   #/zmiany                – lista zmian w kolejnych wersjach (Co nowego)
 //   #/ustawienia            – tryb testowy (dla wszystkich)
 //   #/administrator, #/klucze, #/koszty, #/slownik, #/kopia, #/testai – ekrany administratora
 //   #/instalacja            – jak dodać aplikację do ekranu głównego
@@ -21,6 +22,7 @@ import * as AI from './ai.js';
 import * as K from './koszty.js';
 import * as PWA from './pwa.js';
 import { WERSJA } from './wersja.js';
+import * as ZAPIS from './zapis.js';
 
 const ekran = document.getElementById('app');
 
@@ -176,6 +178,8 @@ async function ekranPrzeglad(id) {
   const grupa = await baza.pobierz('grupy', przeglad.grupaId);
   const protokoly = await protokolyPrzegladu(id);
   const kandydaci = await kandydaciDoKopii(przeglad);
+  const ZP = await import('./zdjecia-przegladu.js');
+  const fotki = await ZP.zdjeciaPrzegladu(id);
 
   ekran.innerHTML = `
     <header class="pasek">
@@ -207,6 +211,19 @@ async function ekranPrzeglad(id) {
           </a>${mozeUsunacProtokol(p) ? `<button class="kosz" data-akcja="usunZListy" data-id="${p.id}" aria-label="Usuń protokół">🗑</button>` : ''}</li>`;
         }).join('')}
       </ul>
+      <section class="karta zdjecia-przegladu">
+        <h3>📷 Zdjęcia przeglądu (${fotki.length})</h3>
+        ${fotki.length ? `<div class="mini-zdjecia">${fotki.map((z) => `<div class="mini-zdjecie">
+          <img src="${h(z.mini)}" alt="" loading="lazy">
+          ${mozeUsunacProtokol(z) ? `<button data-akcja="usunZdjeciePrzegladu" data-id="${z.id}" aria-label="Usuń zdjęcie">✕</button>` : ''}
+        </div>`).join('')}</div>` : '<p class="info">Zdjęcia trafią do osobnego pliku PDF (bez filtrów i przycinania). Widzi je cały zespół.</p>'}
+        <div class="rzad">
+          <label class="duzy przycisk-link wybor-pliku">📷 Dodaj zdjęcia
+            <input type="file" id="zdjeciaPrzegladu" data-przeglad="${id}" accept="image/*" multiple>
+          </label>
+          ${fotki.length ? `<button class="duzy" data-akcja="pdfZdjecPrzegladu" data-id="${id}">🖼 PDF zdjęć (${fotki.length})</button>` : ''}
+        </div>
+      </section>
       <div class="opcje">
         ${protokoly.length ? `<a class="sredni przycisk-link" href="#/pdf/przeglad/${id}">📄 PDF przeglądu</a>` : ''}
         ${jestAdminem() ? `<button class="sredni niebezpieczny" data-akcja="usunPrzeglad" data-id="${id}">🗑 Usuń przegląd</button>` : ''}
@@ -630,18 +647,60 @@ function banerInstalacji() {
 }
 PWA.przyMozliwejInstalacji(() => banerInstalacji());
 
-// Pasek „Jest nowa wersja” – na każdym ekranie.
-function pokazPasekAktualizacji() {
+// Lista zmian (dane/zmiany.json). Najnowszy wpis na górze.
+// „2026.11.18-2041” -> „18.11.2026, 20:41”
+function dataWersji(w) {
+  const m = String(w).match(/^(\d{4})\.(\d{2})\.(\d{2})(?:-(\d{2})(\d{2}))?/);
+  return m ? `${m[3]}.${m[2]}.${m[1]}${m[4] ? `, ${m[4]}:${m[5]}` : ''}` : '';
+}
+async function wczytajZmiany() {
+  try { return await (await fetch('dane/zmiany.json')).json(); } catch (e) { return []; }
+}
+// Lista zmian NOWEJ wersji: telefon pobrał ją już do pamięci (czeka na „Odśwież”).
+async function zmianyNowejWersji() {
+  try {
+    const nazwy = (await caches.keys()).filter((n) => n.startsWith('protokoly-') && n !== `protokoly-${WERSJA}`).sort();
+    const nowa = nazwy[nazwy.length - 1];
+    if (!nowa) return null;
+    const odp = await (await caches.open(nowa)).match('./dane/zmiany.json', { ignoreSearch: true });
+    const lista = odp ? await odp.json() : null;
+    return lista && lista[0] && lista[0].wersja !== WERSJA ? lista[0] : null;
+  } catch (e) { return null; }
+}
+
+// Pasek „Jest nowa wersja” – na każdym ekranie, z listą nowości.
+async function pokazPasekAktualizacji() {
   if (document.getElementById('nowaWersja')) return;
   const el = document.createElement('div');
   el.id = 'nowaWersja';
-  el.innerHTML = '<span>🔄 Jest nowa wersja aplikacji</span><button data-pwa="odswiez">Odśwież</button>';
+  el.innerHTML = '<div class="nw-gora"><span>🔄 Jest nowa wersja aplikacji</span><button data-pwa="odswiez">Odśwież</button></div><div class="nw-zmiany"></div>';
   el.querySelector('button').addEventListener('click', async () => {
     el.querySelector('button').disabled = true;
     await zapiszTeraz(); // najpierw zapisz to, co jest wypełniane
     PWA.zastosujNowaWersje();
   });
   document.body.appendChild(el);
+  const nowa = await zmianyNowejWersji();
+  if (nowa && nowa.zmiany && nowa.zmiany.length) {
+    el.querySelector('.nw-zmiany').innerHTML = `<b>Co nowego:</b><ul>${nowa.zmiany.map((z) => `<li>${h(z)}</li>`).join('')}</ul>`;
+  }
+}
+
+async function ekranZmiany() {
+  const lista = await wczytajZmiany();
+  ekran.innerHTML = `
+    <header class="pasek"><a class="wstecz" href="#/ustawienia">‹</a><h1>Co nowego</h1></header>
+    <main>
+      <section class="karta">
+        <p>Wersja aplikacji: <b>${h(WERSJA)}</b></p>
+        ${PWA.jestNowaWersja() ? '<p class="info">Czeka nowsza wersja – dotknij „Odśwież” na zielonym pasku.</p>' : ''}
+      </section>
+      ${lista.length ? lista.map((w) => `<section class="karta zmiany-wersji">
+        <h3>${w.wersja === WERSJA ? '⭐ ' : ''}Wersja ${h(w.wersja)}${w.wersja === WERSJA ? ' (obecna)' : ''}</h3>
+        ${dataWersji(w.wersja) ? `<p class="info">${dataWersji(w.wersja)}</p>` : ''}
+        <ul>${w.zmiany.map((z) => `<li>${h(z)}</li>`).join('')}</ul>
+      </section>`).join('') : '<p class="pusto">Nie udało się wczytać listy zmian.</p>'}
+    </main>`;
 }
 PWA.przyNowejWersji(pokazPasekAktualizacji);
 
@@ -695,13 +754,33 @@ async function ekranUstawienia() {
         <label class="przelacznik"><input type="checkbox" id="trybTestowy" ${N.trybTestowy() ? 'checked' : ''}> Tryb testowy włączony</label>
       </section>
       <a class="duzy przycisk-link" href="#/slownik">📖 Słownik terminów</a>
+      <section class="karta" id="kartaZapisu">${htmlZapisu(await ZAPIS.folder())}</section>
       <section class="karta">
         <h3>Aplikacja</h3>
         <p>Wersja: <b>${h(WERSJA)}</b>${PWA.zainstalowana() ? ' · zainstalowana ✓' : ''}</p>
+        <a class="sredni przycisk-link" href="#/zmiany">📋 Co nowego (lista zmian)</a>
         <button class="sredni" data-akcja="sprawdzAktualizacje">🔄 Sprawdź aktualizację</button>
         <a class="sredni przycisk-link" href="#/instalacja">📲 ${PWA.zainstalowana() ? 'Instalacja na innym urządzeniu' : 'Jak zainstalować na telefonie'}</a>
       </section>
     </main>`;
+}
+
+// Ustawienie „gdzie zapisywać PDF” (tylko na tym urządzeniu).
+function htmlZapisu(folder) {
+  const t = ZAPIS.tryb();
+  const opcja = (id, nazwa, opis, dziala) => `<label class="opcja-zapisu ${dziala ? '' : 'niedostepna'}">
+    <input type="radio" name="trybZapisu" value="${id}" ${t === id ? 'checked' : ''} ${dziala ? '' : 'disabled'}>
+    <span><b>${nazwa}</b><span class="opis">${dziala ? opis : 'niedostępne na tym urządzeniu'}</span></span></label>`;
+  const nicDodatkowego = !ZAPIS.obsluga.pytaj && !ZAPIS.obsluga.folder;
+  return `<h3>📁 Miejsce zapisu PDF</h3>
+    ${opcja('pobrane', 'Pobrane (domyślnie)', 'pliki trafiają do folderu „Pobrane”', true)}
+    ${opcja('pytaj', 'Pytaj za każdym razem', 'przy zapisie wybierasz folder i nazwę', ZAPIS.obsluga.pytaj)}
+    ${opcja('folder', 'Stały folder', folder ? `zapis od razu do: <b>${h(folder.name)}</b>` : 'wybierz folder poniżej', ZAPIS.obsluga.folder)}
+    ${ZAPIS.obsluga.folder && t === 'folder' ? `<button class="sredni" data-akcja="wybierzFolderPdf">📂 ${folder ? 'Zmień folder' : 'Wybierz folder'}</button>` : ''}
+    ${nicDodatkowego ? `<p class="info">${PWA.toIPhone()
+      ? 'Na iPhonie przeglądarka nie pozwala wybrać folderu. Po utworzeniu PDF dotknij „📤 Udostępnij” → „Zachowaj w Plikach” i wybierz folder.'
+      : 'Ta przeglądarka nie pozwala aplikacji wybrać folderu. W Chrome na Androidzie możesz włączyć: Chrome → ⋮ → Ustawienia → Pobrane pliki → „Pytaj, gdzie zapisać pliki”.'}</p>` : ''}
+    <p class="info">Ustawienie dotyczy tylko tego urządzenia (także kopii zapasowych).</p>`;
 }
 
 // ------------------------------------------------------------
@@ -816,6 +895,7 @@ async function ekranKoszty() {
           <div><span>Claude Code (budowa aplikacji)</span><b>Twoja subskrypcja Claude</b></div>
         </div>
         <p class="info">Aplikacja do działania potrzebuje tylko OpenAI i Anthropic. Subskrypcja Claude jest potrzebna wyłącznie do zmian w aplikacji.</p>
+        <div id="miejsceZdjec"><button class="sredni" data-akcja="policzZdjecia">📷 Policz miejsce zajęte przez zdjęcia</button></div>
         <label class="pole maly">Kurs USD → zł <input type="text" inputmode="decimal" id="kursUSD" value="${liczba(kurs)}"></label>
         <button class="sredni" data-akcja="zapiszKurs">Zapisz kurs</button>
       </section>
@@ -934,12 +1014,14 @@ async function ekranWyboruPdf(rodzaj, id) {
   const kolejnosc = przeglady.map((x) => x.id);
   protokoly.sort((a, b) => kolejnosc.indexOf(a.przegladId) - kolejnosc.indexOf(b.przegladId) || a.utworzono - b.utworzono);
   wyborPdf = { protokoly, przeglady, grupa, wybrane: new Set(protokoly.map((p) => p.id)) };
+  const liczbaFotek = rodzaj === 'przeglad' ? (await (await import('./zdjecia-przegladu.js')).zdjeciaPrzegladu(id)).length : 0;
 
   const powrot = rodzaj === 'przeglad' ? `#/przeglad/${id}` : `#/grupa/${id}`;
   ekran.innerHTML = `
     <header class="pasek"><a class="wstecz" href="${powrot}">‹</a><h1>PDF – ${h(grupa.nazwa)}</h1></header>
     <main class="formularz">
       <p class="info">Każdy protokół zaczyna się od nowej strony i ma własną numerację – jak osobne pliki połączone w jeden.</p>
+      ${liczbaFotek ? `<button class="duzy" data-akcja="pdfZdjecPrzegladu" data-id="${id}">🖼 Zdjęcia przeglądu – osobny PDF (${liczbaFotek})</button>` : ''}
       <div class="rzad">
         <button class="sredni" data-akcja="pdfWszystkie" data-wartosc="1">☑ Zaznacz wszystkie</button>
         <button class="sredni" data-akcja="pdfWszystkie" data-wartosc="">☐ Odznacz</button>
@@ -996,12 +1078,16 @@ const bezPolskichLiter = (s) => s.replace(/ł/g, 'l').replace(/Ł/g, 'L').normal
 function pokazGotowyPlik(plik, tytul) {
   const adres = URL.createObjectURL(plik);
   const moznaUdostepnic = navigator.canShare && navigator.canShare({ files: [plik] });
+  const tryb = ZAPIS.tryb();
   const okno = document.createElement('div');
   okno.className = 'okno-tlo';
   okno.innerHTML = `<div class="okno">
     <h3>${h(tytul)}</h3>
     <p class="info">${h(plik.name)} · ${Math.max(1, Math.round(plik.size / 1024))} KB</p>
-    <a class="duzy glowny przycisk-link" href="${adres}" download="${h(bezPolskichLiter(plik.name))}" target="_blank">💾 Otwórz / zapisz</a>
+    ${tryb === 'pobrane' ? `<a class="duzy glowny przycisk-link" href="${adres}" download="${h(bezPolskichLiter(plik.name))}" target="_blank">💾 Otwórz / zapisz</a>`
+    : `<button class="duzy glowny" data-okno="zapisz">💾 ${tryb === 'pytaj' ? 'Zapisz… (wybierz miejsce)' : 'Zapisz w wybranym folderze'}</button>
+      <p class="info" id="wynikZapisu"></p>
+      <a class="sredni przycisk-link" href="${adres}" download="${h(bezPolskichLiter(plik.name))}" target="_blank">⬇ Pobierz zwykle (folder Pobrane)</a>`}
     ${moznaUdostepnic ? '<button class="duzy" data-okno="udostepnij">📤 Udostępnij (e-mail, Dysk, WhatsApp…)</button>' : ''}
     <button class="sredni" data-okno="zamknij">Zamknij</button>
   </div>`;
@@ -1010,6 +1096,16 @@ function pokazGotowyPlik(plik, tytul) {
     if (e.target === okno || (co && co.dataset.okno === 'zamknij')) {
       okno.remove();
       setTimeout(() => URL.revokeObjectURL(adres), 60000);
+    } else if (co && co.dataset.okno === 'zapisz') {
+      const wynik = okno.querySelector('#wynikZapisu');
+      try {
+        const r = await ZAPIS.zapiszPlik(plik, bezPolskichLiter(plik.name));
+        if (r.stan === 'zapisano') { wynik.textContent = `✓ Zapisano: ${r.gdzie}`; co.textContent = '✓ Zapisano'; co.disabled = true; }
+        else if (r.stan === 'pobierz') { wynik.textContent = 'Nie wybrano folderu w Ustawieniach – pobieram do folderu Pobrane.'; okno.querySelector('a[download]').click(); }
+      } catch (err) {
+        console.error(err);
+        wynik.textContent = `⚠ Nie udało się zapisać: ${err.message}`;
+      }
     } else if (co && co.dataset.okno === 'udostepnij') {
       try { await navigator.share({ files: [plik], title: plik.name }); } catch (err) { /* anulowano */ }
     }
@@ -1614,9 +1710,53 @@ const akcje = {
     const protokoly = await baza.wgIndeksu('protokoly', 'grupaId', id);
     if (!confirm(`Usunąć grupę „${g.nazwa}” razem z ${protokoly.length} protokołami? Tego nie da się cofnąć.`)) return;
     for (const p of protokoly) await baza.usun('protokoly', p.id);
-    for (const pg of await baza.wgIndeksu('przeglady', 'grupaId', id)) await baza.usun('przeglady', pg.id);
+    const ZP = await import('./zdjecia-przegladu.js');
+    for (const pg of await baza.wgIndeksu('przeglady', 'grupaId', id)) { await ZP.usunZdjeciaPrzegladu(pg.id); await baza.usun('przeglady', pg.id); }
     await baza.usun('grupy', id);
     idzDo('#/');
+  },
+  async policzZdjecia() {
+    const el = document.getElementById('miejsceZdjec');
+    el.innerHTML = '<p class="info">Liczę…</p>';
+    const lista = await baza.wszystkie('zdjecia');
+    const bajty = lista.reduce((s, z) => s + (z.rozmiar || 0) + (z.mini || '').length, 0);
+    const mb = bajty / 1048576;
+    const procent = (mb / 1024) * 100;
+    el.innerHTML = `<p>Zdjęcia przeglądów: <b>${lista.length.toLocaleString('pl-PL')}</b> · ok. <b>${mb.toLocaleString('pl-PL', { maximumFractionDigits: 1 })} MB</b>
+      z 1024 MB darmowego limitu bazy (${procent.toLocaleString('pl-PL', { maximumFractionDigits: 1 })}%).</p>
+      <p class="info">Limit 1 GB dotyczy całej bazy (protokoły zajmują bardzo mało). ${procent > 80 ? '⚠ Zbliża się koniec miejsca – usuń stare zdjęcia albo przejdź na plan Blaze.' : ''}</p>`;
+  },
+  async wybierzFolderPdf() {
+    try {
+      const nazwa = await ZAPIS.wybierzFolder();
+      pokazKomunikat(`PDF będą zapisywane w folderze „${nazwa}”`);
+    } catch (e) {
+      if (e.name !== 'AbortError') alert('Nie udało się wybrać folderu: ' + e.message);
+    }
+    document.getElementById('kartaZapisu').innerHTML = htmlZapisu(await ZAPIS.folder());
+  },
+  async usunZdjeciePrzegladu(el) {
+    if (!confirm('Usunąć to zdjęcie z przeglądu?')) return;
+    await (await import('./zdjecia-przegladu.js')).usunZdjecie(el.dataset.id);
+    pokaz();
+  },
+  async pdfZdjecPrzegladu(el) {
+    const pg = await baza.pobierz('przeglady', el.dataset.id);
+    const grupa = await baza.pobierz('grupy', pg.grupaId);
+    const ZP = await import('./zdjecia-przegladu.js');
+    const fotki = await ZP.zdjeciaPrzegladu(pg.id);
+    if (!fotki.length) return;
+    const tekst = el.textContent;
+    el.disabled = true;
+    try {
+      const { bajty, brakujace } = await ZP.pdfZdjec(fotki, (n, w) => { el.textContent = `⏳ Pobieram zdjęcia ${n} / ${w}…`; });
+      if (brakujace) alert(`${brakujace} zdjęć nie udało się pobrać (brak internetu albo jeszcze nie wysłane z innego telefonu). PDF zawiera pozostałe.`);
+      pokazGotowyPdf(new File([bajty], nazwaPlikuPdf(grupa.nazwa, P.dataPL(pg.data), 'zdjecia'), { type: 'application/pdf' }));
+    } catch (e) {
+      console.error(e);
+      alert('Nie udało się utworzyć PDF zdjęć: ' + e.message);
+    }
+    el.disabled = false; el.textContent = tekst;
   },
   async nowyPrzeglad(el) {
     const pg = { id: noweId(), grupaId: el.dataset.id, data: P.dzisiaj(), utworzono: Date.now() };
@@ -1627,8 +1767,11 @@ const akcje = {
     const id = el.dataset.id;
     const pg = await baza.pobierz('przeglady', id);
     const protokoly = await protokolyPrzegladu(id);
-    if (!confirm(`Usunąć przegląd z ${P.dataPL(pg.data)} razem z ${protokoly.length} protokołami?`)) return;
+    const ZP = await import('./zdjecia-przegladu.js');
+    const fotki = await ZP.zdjeciaPrzegladu(id);
+    if (!confirm(`Usunąć przegląd z ${P.dataPL(pg.data)} razem z ${protokoly.length} protokołami${fotki.length ? ` i ${fotki.length} zdjęciami` : ''}?`)) return;
     for (const p of protokoly) await baza.usun('protokoly', p.id);
+    await ZP.usunZdjeciaPrzegladu(id);
     await baza.usun('przeglady', id);
     idzDo(`#/grupa/${pg.grupaId}`);
   },
@@ -1773,6 +1916,31 @@ ekran.addEventListener('change', async (e) => {
     pokazKomunikat(el.checked ? 'Tryb testowy włączony – bez kosztów' : 'Tryb testowy wyłączony');
     return;
   }
+  if (el.name === 'trybZapisu') {
+    ZAPIS.ustawTryb(el.value);
+    const folder = await ZAPIS.folder();
+    document.getElementById('kartaZapisu').innerHTML = htmlZapisu(folder);
+    if (el.value === 'folder' && !folder) pokazKomunikat('Teraz dotknij „📂 Wybierz folder”');
+    return;
+  }
+  if (el.id === 'zdjeciaPrzegladu' && el.files.length) {
+    const pliki = [...el.files];
+    el.value = '';
+    const pg = await baza.pobierz('przeglady', el.dataset.przeglad);
+    const etykieta = el.closest('label');
+    const ZP = await import('./zdjecia-przegladu.js');
+    try {
+      const { dodane, pominiete } = await ZP.dodajZdjecia(pg, pliki, (n, w) => {
+        if (etykieta && etykieta.firstChild) etykieta.firstChild.textContent = n < w ? `⏳ Zapisuję ${n + 1} / ${w}… ` : '📷 Dodaj zdjęcia ';
+      });
+      pokazKomunikat(`Dodano ${dodane} zdjęć${pominiete ? ` (pominięto ${pominiete} – to nie są zdjęcia)` : ''}${navigator.onLine ? '' : ' – wyślą się po powrocie internetu'}`);
+    } catch (e) {
+      console.error(e);
+      alert('Nie udało się dodać zdjęć: ' + e.message);
+    }
+    if (location.hash === `#/przeglad/${pg.id}`) pokaz();
+    return;
+  }
   if ((el.id === 'wybierzZdjecia' || el.id === 'zrobZdjecie') && el.files.length) {
     dodajZdjecia(el.files);
     el.value = '';
@@ -1816,6 +1984,7 @@ async function pokaz() {
   else if (rodzaj === 'pdf') await ekranWyboruPdf(id, location.hash.split('/')[3]);
   else if (rodzaj === 'zdjecia') ekranZdjecia();
   else if (rodzaj === 'ustawienia') await ekranUstawienia();
+  else if (rodzaj === 'zmiany') await ekranZmiany();
   else if (rodzaj === 'administrator') ekranAdministrator();
   else if (rodzaj === 'klucze') await ekranKlucze();
   else if (rodzaj === 'testai') await ekranTestAI();

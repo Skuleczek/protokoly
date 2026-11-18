@@ -53,6 +53,22 @@ export async function stronaPodgladu(z, szerokosc = 700) {
   return { adres: URL.createObjectURL(blob), pozioma: u.W > u.H };
 }
 
+// Gotowe pliki JPEG -> PDF bez żadnych zmian (zdjęcia przeglądu).
+// @param {Array<{blob, szer, wys}>} pliki
+export async function jpgDoPdf(pliki) {
+  const pdf = await PDFDocument.create();
+  for (const p of pliki) {
+    const obraz = await pdf.embedJpg(new Uint8Array(await p.blob.arrayBuffer()));
+    const u = ukladStrony(obraz.width, obraz.height);
+    const strona = pdf.addPage([u.W, u.H]);
+    strona.drawImage(obraz, { x: u.x, y: u.H - u.y - u.h, width: u.w, height: u.h });
+  }
+  pdf.setTitle('Zdjęcia');
+  pdf.setCreator('Protokoły kontroli');
+  pdf.setProducer('Protokoły kontroli');
+  return pdf.save();
+}
+
 /**
  * @param {Array<{plik, rogi, filtr, obrot}>} zdjecia – w kolejności stron
  * @param {(zrobione:number, wszystkie:number, pominiete:number) => void} postep

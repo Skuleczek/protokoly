@@ -262,10 +262,18 @@ h2 { display: flex; align-items: center; justify-content: space-between; }
 /* Pasek „Jest nowa wersja” */
 #nowaWersja {
   position: fixed; left: 8px; right: 8px; top: max(8px, env(safe-area-inset-top)); z-index: 50;
-  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  display: block; padding: 10px 12px; max-height: 70vh; overflow-y: auto;
   background: var(--zielony); color: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.25); font-weight: 600;
 }
-#nowaWersja span { flex: 1; }
+.nw-gora { display: flex; align-items: center; gap: 12px; }
+.nw-gora span { flex: 1; }
+.nw-zmiany { font-weight: 400; font-size: 15px; line-height: 1.35; }
+.nw-zmiany:not(:empty) { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.4); }
+.nw-zmiany ul { margin: 4px 0 0; padding-left: 20px; }
+.nw-zmiany li { margin: 3px 0; }
+.zmiany-wersji h3 { margin-bottom: 0; }
+.zmiany-wersji ul { padding-left: 20px; margin: 6px 0 0; }
+.zmiany-wersji li { margin: 6px 0; line-height: 1.4; }
 #nowaWersja button { min-height: 48px; padding: 0 18px; border: 0; border-radius: 10px; background: #fff; color: var(--zielony); font-weight: 800; font-size: 17px; }
 .kroki { padding-left: 22px; margin: 6px 0; }
 .kroki li { margin: 8px 0; line-height: 1.4; }
@@ -320,3 +328,16 @@ h2 { display: flex; align-items: center; justify-content: space-between; }
 .pp-kartka img { display: block; width: 100%; height: 100%; }
 .pp-kartka .laduje { color: var(--szary); padding: 12px; }
 .pp-nr { display: block; margin-top: 6px; font-size: 15px; font-weight: 600; }
+
+/* Zdjęcia przeglądu */
+.mini-zdjecia { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; margin: 8px 0; }
+.mini-zdjecie { position: relative; }
+.mini-zdjecie img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; background: var(--szary-tlo); }
+.mini-zdjecie button { position: absolute; top: 2px; right: 2px; width: 32px; height: 32px; border-radius: 50%; border: 0; background: rgba(0,0,0,.65); color: #fff; font-size: 16px; }
+.zdjecia-przegladu .rzad > * { flex: 1; }
+
+/* Miejsce zapisu PDF */
+.opcja-zapisu { display: flex; gap: 12px; align-items: center; min-height: 56px; padding: 6px 0; border-top: 1px solid var(--szary-tlo); }
+.opcja-zapisu input { width: 26px; height: 26px; flex: 0 0 auto; }
+.opcja-zapisu .opis { display: block; font-size: 14px; color: var(--szary); }
+.opcja-zapisu.niedostepna { opacity: .55; }
