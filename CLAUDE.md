@@ -58,7 +58,7 @@
   - `kody/{kontoId}_{kod}` {konto, wazneDo},
   - `urzadzenia/{uid}` {konto, kod, opis, utworzono},
   - `grupy/{id}`, `przeglady/{id}` {grupaId, data},
-  - `protokoly/{id}`: naglowek (typ, nrFabr, rok, oznaczenie, opcjonalne `pomieszczenie` = pomieszczenie/piętro; w PDF w wierszu OZNACZENIE po prawej, x=450 – komórka I2 oryginału), sekcje, punkty (`stan poz|neg`, `dod`, `rozmiar`, `pobor/znamionowy/bezpiecznik`), termin, uwagi, flagi, transkrypcje (ai: czeka|gotowe|blad), ostatnieAI, autor/autorImie, zmienil/zmienilImie, dataKontroli, podpis (na przyszłość),
+  - `protokoly/{id}`: naglowek (typ, nrFabr, rok, oznaczenie, opcjonalne `pomieszczenie` = pomieszczenie/piętro; w PDF w wierszu OZNACZENIE komórka I2 oryginału = kolumna I, x=400 jak pole „nastawa”; przy długim oznaczeniu przesuwa się w prawo), sekcje, punkty (`stan poz|neg`, `dod`, `rozmiar`, `pobor/znamionowy/bezpiecznik`), termin, uwagi, flagi, transkrypcje (ai: czeka|gotowe|blad), ostatnieAI, autor/autorImie, zmienil/zmienilImie, dataKontroli, podpis (na przyszłość),
   - `sekrety/klucze`: klucze API i modele, ważność kluczy (**opcja A**: czytają wszyscy członkowie, pisze administrator),
   - `wspolne/slownik`: terminy; czyta i pisze każdy członek, podpisany polem `zmienil`,
   - `admin/budzet`: saldo, kurs; tylko administrator,

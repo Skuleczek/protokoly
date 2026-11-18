@@ -21,7 +21,7 @@ const K = {
   dod: 400.0, dodSzer: 28.3, opisDod: 430.2, // pole dodatkowe
   szerokie1: [235.3, 309.3], szerokie2: [317.7, 391.7], // pola liczbowe
   kratka: 8.3,
-  pomieszczenie: 450,                // pomieszczenie/piętro w wierszu OZNACZENIE
+  pomieszczenie: 400.0,              // pomieszczenie/piętro: komórka I2 (kolumna I, jak pole „nastawa”)
 };
 const ROZMIAR = { punkt: 7, naglowek: 8, tytul: 11.5, firma: 7.7, strona: 9.6, stopka: 9 };
 
@@ -130,9 +130,18 @@ function rysujProtokol(pdf, f, p, obiekt) {
   etykieta('ROK PRODUKCJI:', 319.5, 43.1, n.rok, 545);
   etykieta('OBIEKT:', 58.5, 54.8, obiekt, 316);
   // Pomieszczenie/piętro (opcjonalne) – w tym samym wierszu, po prawej (komórka I2 oryginału).
+  // Długie oznaczenie nie jest zmniejszane – wtedy piętro przesuwa się w prawo.
   const pom = String(n.pomieszczenie || '').trim();
-  etykieta('OZNACZENIE:', 319.5, 54.8, n.oznaczenie, pom ? K.pomieszczenie - 4 : 545);
-  if (pom) t.tekst(pom, K.pomieszczenie, 54.8, { czc: f.r, roz: ROZMIAR.naglowek, maxSzer: 545 - K.pomieszczenie });
+  if (!pom) etykieta('OZNACZENIE:', 319.5, 54.8, n.oznaczenie, 545);
+  else {
+    const wE = t.tekst('OZNACZENIE:', 319.5, 54.8, { czc: f.b, roz: ROZMIAR.naglowek });
+    const ozn = String(n.oznaczenie || '').trim();
+    const xOzn = 319.5 + wE + 4;
+    const wOzn = Math.min(f.r.widthOfTextAtSize(ozn, ROZMIAR.naglowek), 470 - xOzn);
+    t.tekst(ozn, xOzn, 54.8, { czc: f.r, roz: ROZMIAR.naglowek, maxSzer: 470 - xOzn });
+    const xPom = Math.max(K.pomieszczenie, xOzn + wOzn + 8);
+    t.tekst(pom, xPom, 54.8, { czc: f.r, roz: ROZMIAR.naglowek, maxSzer: 545 - xPom });
+  }
 
   // --- tabela sekcji
   const gora = 65.3;
