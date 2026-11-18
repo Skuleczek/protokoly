@@ -28,6 +28,31 @@ export async function miniatura(z, img = null) {
   return URL.createObjectURL(blob);
 }
 
+// Położenie zdjęcia na stronie A4 (w punktach, y liczone od góry).
+// Poziome zdjęcie -> pozioma strona. Ten sam układ dla PDF i podglądu.
+export function ukladStrony(w, h) {
+  const [W, H] = w > h ? [A4[1], A4[0]] : A4;
+  const skala = Math.min((W - 2 * MARGINES) / w, (H - 2 * MARGINES) / h);
+  return { W, H, w: w * skala, h: h * skala, x: (W - w * skala) / 2, y: (H - h * skala) / 2 };
+}
+
+// Obrazek jednej strony PDF do podglądu (biała kartka A4 ze zdjęciem).
+export async function stronaPodgladu(z, szerokosc = 700) {
+  const img = await S.wczytajObraz(z.plik);
+  const c = S.przetworz(img, z, 1200);
+  const u = ukladStrony(c.width, c.height);
+  const s = szerokosc / A4[0]; // ta sama skala dla stron pionowych i poziomych
+  const strona = document.createElement('canvas');
+  strona.width = Math.round(u.W * s); strona.height = Math.round(u.H * s);
+  const ctx = strona.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, strona.width, strona.height);
+  ctx.drawImage(c, u.x * s, u.y * s, u.w * s, u.h * s);
+  c.width = 0;
+  const blob = await S.doJpeg(strona, 0.8);
+  strona.width = 0;
+  return { adres: URL.createObjectURL(blob), pozioma: u.W > u.H };
+}
+
 /**
  * @param {Array<{plik, rogi, filtr, obrot}>} zdjecia – w kolejności stron
  * @param {(zrobione:number, wszystkie:number, pominiete:number) => void} postep
@@ -46,16 +71,12 @@ export async function zdjeciaDoPdf(zdjecia, postep = () => {}) {
       postep(i + 1, zdjecia.length, pominiete);
       continue;
     }
-    const w = c.width; const h = c.height;
+    const u = ukladStrony(c.width, c.height);
     const blob = await S.doJpeg(c, 0.85);
     c.width = 0; // zwolnij pamięć
     const obraz = await pdf.embedJpg(new Uint8Array(await blob.arrayBuffer()));
-    const [W, H] = w > h ? [A4[1], A4[0]] : A4; // poziome zdjęcie -> pozioma strona
-    const skala = Math.min((W - 2 * MARGINES) / w, (H - 2 * MARGINES) / h);
-    const strona = pdf.addPage([W, H]);
-    strona.drawImage(obraz, {
-      x: (W - w * skala) / 2, y: (H - h * skala) / 2, width: w * skala, height: h * skala,
-    });
+    const strona = pdf.addPage([u.W, u.H]);
+    strona.drawImage(obraz, { x: u.x, y: u.H - u.y - u.h, width: u.w, height: u.h });
     postep(i + 1, zdjecia.length, pominiete);
     await new Promise((ok) => setTimeout(ok, 0)); // daj telefonowi odetchnąć
   }

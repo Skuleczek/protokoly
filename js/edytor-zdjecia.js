@@ -1,25 +1,38 @@
 // ============================================================
-// edytor-zdjecia.js – ekran edycji jednego zdjęcia w „Zdjęcia → PDF”:
+// edytor-zdjecia.js – ekran edycji zdjęć w „Zdjęcia → PDF”:
 // przesuwanie 4 rogów kartki (z lupą), automatyczne wykrywanie,
-// całe zdjęcie, obrót, filtr i podgląd wyniku.
+// całe zdjęcie, obrót, filtr (osobno lub dla wszystkich) i podgląd.
+// Strzałkami przechodzi się po kolei przez wszystkie zdjęcia.
 // ============================================================
 
 import * as S from './skaner.js';
 
+const kopia = (z) => ({ rogi: (z.rogi || S.CALE_ZDJECIE).map((r) => [...r]), filtr: z.filtr || 'oryginal', obrot: z.obrot || 0 });
+const takieSame = (a, b) => JSON.stringify(kopia(a)) === JSON.stringify(kopia(b));
+
 /**
- * Otwiera edytor. Zmienia z.rogi / z.filtr / z.obrot po „Gotowe”.
- * @returns {Promise<boolean>} true = zapisano zmiany
+ * Otwiera edytor na zdjęciu nr `start` (od 0).
+ * Po „Gotowe” zapisuje rogi/filtr/obrót w zdjęciach.
+ * @returns {Promise<{zmienione: number[], filtrDlaWszystkich: string|null}|null>} null = anulowano
  */
-export async function edytujZdjecie(z, numer, razem) {
-  const img = await S.wczytajObraz(z.plik);
-  const stan = { rogi: (z.rogi || S.CALE_ZDJECIE).map((r) => [...r]), filtr: z.filtr || 'oryginal', obrot: z.obrot || 0, podglad: false };
+export async function edytujZdjecia(lista, start = 0) {
+  if (!lista.length) return null;
+  const stany = lista.map(() => null); // zmiany w trakcie edycji (null = bez zmian)
+  const stanZdjecia = (i) => (stany[i] = stany[i] || kopia(lista[i]));
+  let filtrDlaWszystkich = null;
+  let nr = Math.min(Math.max(0, start), lista.length - 1);
+  let img = null; // bieżące zdjęcie (pełne)
+  let mal = null; // pomniejszone do wyświetlania
+  let stan = null; // stan bieżącego zdjęcia
+  let podgladWlaczony = false;
+  let wczytywanie = 0; // licznik – chroni przed szybkim klikaniem strzałek
 
   const okno = document.createElement('div');
   okno.className = 'edytor';
   okno.innerHTML = `
     <div class="e-gora">
       <button data-e="anuluj">Anuluj</button>
-      <span>Zdjęcie ${numer} / ${razem}</span>
+      <span class="e-licznik"></span>
       <button data-e="gotowe" class="e-gotowe">✓ Gotowe</button>
     </div>
     <div class="e-obszar">
@@ -28,6 +41,7 @@ export async function edytujZdjecie(z, numer, razem) {
       ${[0, 1, 2, 3].map((i) => `<div class="e-uchwyt" data-i="${i}"></div>`).join('')}
       <canvas class="e-lupa" width="140" height="140"></canvas>
       <canvas class="e-podglad"></canvas>
+      <div class="e-laduje">Wczytuję zdjęcie…</div>
     </div>
     <div class="e-dol">
       <div class="e-narzedzia">
@@ -37,7 +51,12 @@ export async function edytujZdjecie(z, numer, razem) {
         <button data-e="podglad">👁 Podgląd</button>
       </div>
       <div class="e-filtry">${S.FILTRY.map((f) => `<button data-filtr="${f.id}">${f.nazwa}</button>`).join('')}</div>
+      ${lista.length > 1 ? '<button class="e-wszystkie" data-e="wszystkie">Zastosuj filtr dla wszystkich zdjęć</button>' : ''}
       <div class="e-info"></div>
+      ${lista.length > 1 ? `<div class="e-nawigacja">
+        <button data-e="poprzednie">◀ Poprzednie</button>
+        <button data-e="nastepne">Następne ▶</button>
+      </div>` : ''}
     </div>`;
   document.body.appendChild(okno);
 
@@ -48,11 +67,12 @@ export async function edytujZdjecie(z, numer, razem) {
   const lupa = okno.querySelector('.e-lupa');
   const podglad = okno.querySelector('.e-podglad');
   const info = okno.querySelector('.e-info');
-  let mal = null; // pomniejszone zdjęcie do wyświetlania
+  const laduje = okno.querySelector('.e-laduje');
 
   function rozmiesc() {
+    if (!img) return;
     const W = obszar.clientWidth - 24; const H = obszar.clientHeight - 24;
-    const iw = img.naturalWidth; const ih = img.naturalHeight;
+    const iw = img.naturalWidth || img.width; const ih = img.naturalHeight || img.height;
     const s = Math.min(W / iw, H / ih);
     const dw = Math.round(iw * s); const dh = Math.round(ih * s);
     const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -63,34 +83,68 @@ export async function edytujZdjecie(z, numer, razem) {
     plotno.getContext('2d').drawImage(mal, 0, 0, plotno.width, plotno.height);
     ramka.setAttribute('width', obszar.clientWidth); ramka.setAttribute('height', obszar.clientHeight);
     rysujRamke();
+    if (podgladWlaczony) pokazPodglad();
   }
 
   const pozycja = ([x, y]) => [plotno.offsetLeft + x * plotno.offsetWidth, plotno.offsetTop + y * plotno.offsetHeight];
 
   function rysujRamke() {
+    if (!stan) return;
     const p = stan.rogi.map(pozycja);
     ramka.querySelector('polygon').setAttribute('points', p.map((q) => q.join(',')).join(' '));
     uchwyty.forEach((u, i) => { u.style.left = `${p[i][0]}px`; u.style.top = `${p[i][1]}px`; });
     const nazwaFiltra = S.FILTRY.find((f) => f.id === stan.filtr).nazwa;
-    info.textContent = `Filtr: ${nazwaFiltra}${stan.obrot ? ` · obrót ${stan.obrot}°` : ''} · przeciągnij rogi na rogi kartki`;
+    info.textContent = `Filtr: ${nazwaFiltra}${stan.obrot ? ` · obrót ${stan.obrot}°` : ''}${podgladWlaczony ? '' : ' · przeciągnij rogi na rogi kartki'}`;
     okno.querySelectorAll('[data-filtr]').forEach((b) => b.classList.toggle('wybrany', b.dataset.filtr === stan.filtr));
   }
 
   function pokazPodglad() {
+    if (!img) return;
     const c = S.przetworz(img, stan, 1400);
     const W = obszar.clientWidth - 24; const H = obszar.clientHeight - 24;
     const s = Math.min(W / c.width, H / c.height, 1.5);
     podglad.width = c.width; podglad.height = c.height;
     podglad.getContext('2d').drawImage(c, 0, 0);
-    podglad.style.width = `${c.width * s}px`; podglad.style.height = `${c.height * s}px`;
-    podglad.style.left = `${(obszar.clientWidth - c.width * s) / 2}px`; podglad.style.top = `${(obszar.clientHeight - c.height * s) / 2}px`;
+    c.width = 0; // zwolnij pamięć
+    const w = podglad.width * s; const h = podglad.height * s;
+    podglad.style.width = `${w}px`; podglad.style.height = `${h}px`;
+    podglad.style.left = `${(obszar.clientWidth - w) / 2}px`; podglad.style.top = `${(obszar.clientHeight - h) / 2}px`;
   }
 
   function ustawTryb() {
-    okno.classList.toggle('tryb-podglad', stan.podglad);
-    okno.querySelector('[data-e=podglad]').textContent = stan.podglad ? '✏ Rogi' : '👁 Podgląd';
-    if (stan.podglad) pokazPodglad();
+    okno.classList.toggle('tryb-podglad', podgladWlaczony);
+    okno.querySelector('[data-e=podglad]').textContent = podgladWlaczony ? '✏ Rogi' : '👁 Podgląd';
+    if (podgladWlaczony) pokazPodglad();
     rysujRamke();
+  }
+
+  function odswiezNawigacje() {
+    okno.querySelector('.e-licznik').textContent = `Zdjęcie ${nr + 1} z ${lista.length}`;
+    const pop = okno.querySelector('[data-e=poprzednie]'); const nast = okno.querySelector('[data-e=nastepne]');
+    if (pop) pop.disabled = nr === 0;
+    if (nast) nast.disabled = nr === lista.length - 1;
+  }
+
+  // Wczytuje zdjęcie nr i (stan poprzedniego zostaje w `stany`).
+  async function pokazZdjecie(i) {
+    nr = i;
+    const moj = ++wczytywanie;
+    stan = stanZdjecia(i);
+    odswiezNawigacje();
+    okno.classList.add('wczytuje');
+    laduje.textContent = 'Wczytuję zdjęcie…';
+    let nowy;
+    try { nowy = await S.wczytajObraz(lista[i].plik); } catch (e) {
+      if (moj !== wczytywanie) return;
+      img = null; mal = null;
+      laduje.textContent = '⚠ Nie udało się odczytać tego zdjęcia.';
+      return;
+    }
+    if (moj !== wczytywanie) return; // w międzyczasie przełączono na inne zdjęcie
+    img = nowy; mal = null;
+    okno.classList.remove('wczytuje');
+    rozmiesc();
+    ustawTryb();
   }
 
   // --- przeciąganie rogów (z lupą)
@@ -107,6 +161,7 @@ export async function edytujZdjecie(z, numer, razem) {
   }
   uchwyty.forEach((u) => {
     u.addEventListener('pointerdown', (e) => {
+      if (!mal) return;
       e.preventDefault(); aktywny = +u.dataset.i; u.setPointerCapture(e.pointerId); u.classList.add('przeciagany');
       lupa.style.display = 'block';
       rysujLupe(...stan.rogi[aktywny]);
@@ -130,26 +185,44 @@ export async function edytujZdjecie(z, numer, razem) {
     const zamknij = (zapisz) => {
       window.removeEventListener('resize', rozmiesc);
       okno.remove();
-      if (zapisz) { z.rogi = stan.rogi; z.filtr = stan.filtr; z.obrot = stan.obrot; }
-      ok(zapisz);
+      if (!zapisz) { ok(null); return; }
+      const zmienione = [];
+      stany.forEach((s, i) => {
+        if (!s || takieSame(s, lista[i])) return;
+        Object.assign(lista[i], s);
+        zmienione.push(i);
+      });
+      ok({ zmienione, filtrDlaWszystkich });
     };
     okno.addEventListener('click', (e) => {
       const b = e.target.closest('[data-e],[data-filtr]');
-      if (!b) return;
-      if (b.dataset.filtr) { stan.filtr = b.dataset.filtr; if (stan.podglad) pokazPodglad(); rysujRamke(); return; }
+      if (!b || b.disabled) return;
+      if (b.dataset.filtr) { stan.filtr = b.dataset.filtr; if (podgladWlaczony) pokazPodglad(); rysujRamke(); return; }
       const co = b.dataset.e;
-      if (co === 'anuluj') zamknij(false);
-      else if (co === 'gotowe') zamknij(true);
-      else if (co === 'wykryj') {
+      if (co === 'anuluj') {
+        const sa = stany.some((s, i) => s && !takieSame(s, lista[i]));
+        if (!sa || confirm('Odrzucić zmiany wprowadzone w zdjęciach?')) zamknij(false);
+      } else if (co === 'gotowe') zamknij(true);
+      else if (co === 'poprzednie' && nr > 0) pokazZdjecie(nr - 1);
+      else if (co === 'nastepne' && nr < lista.length - 1) pokazZdjecie(nr + 1);
+      else if (co === 'wszystkie') {
+        lista.forEach((_, i) => { stanZdjecia(i).filtr = stan.filtr; });
+        filtrDlaWszystkich = stan.filtr;
+        const nazwa = S.FILTRY.find((f) => f.id === stan.filtr).nazwa;
+        rysujRamke();
+        info.textContent = `✓ Filtr „${nazwa}” ustawiony dla wszystkich ${lista.length} zdjęć`;
+      } else if (!img) {
+        // zdjęcie się jeszcze wczytuje albo jest uszkodzone – narzędzia nieaktywne
+      } else if (co === 'wykryj') {
         const r = S.wykryjKartke(img);
         if (r) stan.rogi = r;
-        if (stan.podglad) pokazPodglad(); rysujRamke();
+        if (podgladWlaczony) pokazPodglad(); rysujRamke();
         info.textContent = r ? '🪄 Wykryto kartkę' : 'Nie udało się wykryć kartki – ustaw rogi ręcznie.';
-      } else if (co === 'cale') { stan.rogi = S.CALE_ZDJECIE.map((r) => [...r]); if (stan.podglad) pokazPodglad(); rysujRamke(); }
-      else if (co === 'obroc') { stan.obrot = (stan.obrot + 90) % 360; stan.podglad = true; ustawTryb(); }
-      else if (co === 'podglad') { stan.podglad = !stan.podglad; ustawTryb(); }
+      } else if (co === 'cale') { stan.rogi = S.CALE_ZDJECIE.map((r) => [...r]); if (podgladWlaczony) pokazPodglad(); rysujRamke(); }
+      else if (co === 'obroc') { stan.obrot = (stan.obrot + 90) % 360; podgladWlaczony = true; ustawTryb(); }
+      else if (co === 'podglad') { podgladWlaczony = !podgladWlaczony; ustawTryb(); }
     });
     window.addEventListener('resize', rozmiesc);
-    requestAnimationFrame(() => { rozmiesc(); ustawTryb(); });
+    requestAnimationFrame(() => pokazZdjecie(nr));
   });
 }

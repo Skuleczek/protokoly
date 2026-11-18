@@ -42,7 +42,7 @@
 - `js/ai.js`: instrukcja systemowa z zasadami, schemat JSON z szablonu, wywołanie Claude, `zastosujWynik`, `cofnijAI` (cofa tylko pola zmienione przez AI), sprawdzanie klucza.
 - `js/testy-ai.js`: 13 scenariuszy „Test jakości AI” (ostatni wynik u użytkownika: 38/38; od dodania pola pomieszczenia jest 39 sprawdzeń).
 - `js/pdf.js`: PDF protokołu. Wymiary zmierzone z oryginału (stała `K`). **Nie pokazuje oznaczeń AI ani flag.**
-- `js/zdjecia.js`, `js/skaner.js`, `js/edytor-zdjecia.js`: Zdjęcia → PDF i skaner (wykrywanie kartki, homografia, filtry `oryginal|kontrast|szarosc|dokument|czarnobialy`, obrót).
+- `js/zdjecia.js`, `js/skaner.js`, `js/edytor-zdjecia.js`: Zdjęcia → PDF i skaner. Edytor `edytujZdjecia(lista, start)` obsługuje wszystkie zdjęcia (strzałki ◀/▶, „Zastosuj filtr dla wszystkich”, Anuluj odrzuca całą edycję). Filtr jest osobny dla każdego zdjęcia, a chipy na ekranie głównym ustawiają filtr dla nowych zdjęć. „👁 Podgląd” pokazuje strony A4 (`ukladStrony` wspólny z PDF) (wykrywanie kartki, homografia, filtry `oryginal|kontrast|szarosc|dokument|czarnobialy`, obrót).
 - `js/koszty.js`: podsumowanie zużycia, szacowane saldo i data końca środków.
 - `js/pwa.js`, `sw.js`, `manifest.json`, `ikony/`: instalacja, offline, pasek „Jest nowa wersja”. `js/wersja.js` jest generowany automatycznie.
 - `dane/szablon.json`: struktura protokołu (jedno źródło dla formularza, PDF i AI). `dane/slownik-startowy.json`: startowy słownik.

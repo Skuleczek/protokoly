@@ -1048,14 +1048,16 @@ function ekranZdjecia() {
       </label>
       <section class="karta">
         <label class="przelacznik"><input type="checkbox" id="skanerAuto" ${autoKadrowanie() ? 'checked' : ''}> 🪄 Automatycznie wykrywaj i prostuj kartkę</label>
-        <div class="pole maly">Filtr
+        <div class="pole maly">Filtr dla nowych zdjęć
           <div class="chipy">${FILTRY_SKANERA.map(([id, nazwa]) => `<button class="chip ${filtrDomyslny() === id ? 'wybrany' : ''}" data-akcja="zdjFiltr" data-filtr="${id}">${nazwa}</button>`).join('')}</div>
         </div>
-        <p class="info">Wybrany filtr dostają nowe zdjęcia i wszystkie już dodane. Dotknij zdjęcia, aby poprawić rogi kartki, obrócić je albo zmienić filtr tylko dla niego.</p>
+        <button class="sredni" data-akcja="zdjFiltrWszystkie" id="zdjFiltrWszystkie">Zastosuj ten filtr do wszystkich zdjęć</button>
+        <p class="info">Każde zdjęcie może mieć własny filtr – ustawisz go w edytorze (✏ Edytuj). Tam poprawisz też rogi kartki i obrót, a strzałkami przejdziesz do kolejnego zdjęcia.</p>
       </section>
       <div id="listaZdjec"></div>
     </main>
     <footer class="dolny">
+      <button class="duzy" data-akcja="zdjPodglad" id="przyciskZdjPodglad">👁 Podgląd</button>
       <button class="duzy glowny" data-akcja="zdjPdf" id="przyciskZdjPdf"></button>
     </footer>`;
   odswiezZdjecia();
@@ -1066,6 +1068,7 @@ function odswiezZdjecia() {
   if (!lista) return;
   lista.innerHTML = zdjecia.length ? `
     <h2>Zdjęcia (${zdjecia.length}) <button class="maly-link" data-akcja="zdjWyczysc">usuń wszystkie</button></h2>
+    <button class="duzy" data-akcja="zdjEdytuj" data-i="0">✏ Edytuj zdjęcia</button>
     <div class="siatka-zdjec">
       ${zdjecia.map((z, i) => `<div class="zdjecie">
         <button class="zdj-podglad" data-akcja="zdjEdytuj" data-i="${i}" aria-label="Edytuj zdjęcie ${i + 1}">
@@ -1073,6 +1076,7 @@ function odswiezZdjecia() {
           <span class="zdj-edytuj">✏</span>
         </button>
         <div class="nr-strony">${i + 1}</div>
+        <div class="zdj-filtr">${h(nazwaFiltra(z.filtr))}</div>
         <div class="zdj-przyciski">
           <button data-akcja="zdjPrzesun" data-i="${i}" data-o="-1" ${i === 0 ? 'disabled' : ''} aria-label="Wcześniej">◀</button>
           <button data-akcja="zdjUsun" data-i="${i}" aria-label="Usuń">✕</button>
@@ -1082,6 +1086,80 @@ function odswiezZdjecia() {
     </div>` : '<p class="pusto">Dodaj zdjęcia z galerii albo zrób je aparatem.</p>';
   const b = document.getElementById('przyciskZdjPdf');
   if (b) { b.textContent = `📄 Utwórz PDF (${zdjecia.length})`; b.disabled = !zdjecia.length; }
+  const p = document.getElementById('przyciskZdjPodglad');
+  if (p) p.disabled = !zdjecia.length;
+  const w = document.getElementById('zdjFiltrWszystkie');
+  if (w) w.hidden = !zdjecia.length;
+}
+
+const nazwaFiltra = (id) => (FILTRY_SKANERA.find(([f]) => f === id) || [, id])[1];
+
+// Odświeża miniatury podanych zdjęć (po zmianie filtra, rogów, obrotu).
+async function odnowMiniatury(lista) {
+  const Z = await import('./zdjecia.js');
+  for (const z of lista) {
+    const stara = z.mini; z.mini = null; odswiezZdjecia();
+    try { z.mini = await Z.miniatura(z); } catch (e) { z.mini = ''; }
+    if (stara) URL.revokeObjectURL(stara);
+    odswiezZdjecia();
+  }
+}
+
+function zaznaczFiltrDomyslny(filtr) {
+  ustawOpcjeSkanera('skanerFiltr', filtr);
+  document.querySelectorAll('[data-akcja=zdjFiltr]').forEach((b) => b.classList.toggle('wybrany', b.dataset.filtr === filtr));
+}
+
+// Podgląd całego PDF przed utworzeniem: strony A4 dokładnie jak w pliku.
+async function podgladZdjecPdf() {
+  await dodawanieZdjec;
+  const Z = await import('./zdjecia.js');
+  const okno = document.createElement('div');
+  okno.className = 'podglad-pdf';
+  okno.innerHTML = `
+    <header class="pasek"><button class="wstecz" data-pp="zamknij" aria-label="Zamknij">‹</button><h1>Podgląd PDF (${zdjecia.length} str.)</h1></header>
+    <div class="pp-strony">${zdjecia.map((z, i) => `<button class="pp-strona" data-pp="edytuj" data-i="${i}" aria-label="Edytuj stronę ${i + 1}">
+      <div class="pp-kartka"><span class="laduje">…</span></div><span class="pp-nr">Strona ${i + 1} · ${h(nazwaFiltra(z.filtr))} · ✏</span></button>`).join('')}</div>
+    <footer class="dolny">
+      <button class="duzy" data-pp="zamknij">‹ Wróć</button>
+      <button class="duzy glowny" data-pp="pdf">📄 Utwórz PDF</button>
+    </footer>`;
+  document.body.appendChild(okno);
+  const adresy = [];
+  let otwarte = true;
+  const zamknij = () => { otwarte = false; okno.remove(); adresy.forEach((a) => URL.revokeObjectURL(a)); };
+  okno.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-pp]');
+    if (!b) return;
+    if (b.dataset.pp === 'zamknij') zamknij();
+    else if (b.dataset.pp === 'pdf') { zamknij(); akcje.zdjPdf(); }
+    else if (b.dataset.pp === 'edytuj') { zamknij(); await edytujOd(+b.dataset.i); podgladZdjecPdf(); }
+  });
+  // Strony rysowane po kolei (oszczędza pamięć telefonu).
+  const kartki = okno.querySelectorAll('.pp-kartka');
+  for (let i = 0; i < zdjecia.length && otwarte; i++) {
+    try {
+      const { adres, pozioma } = await Z.stronaPodgladu(zdjecia[i]);
+      if (!otwarte) { URL.revokeObjectURL(adres); break; }
+      adresy.push(adres);
+      kartki[i].classList.toggle('pozioma', pozioma);
+      kartki[i].innerHTML = `<img src="${adres}" alt="Strona ${i + 1}">`;
+    } catch (e) {
+      kartki[i].innerHTML = '<span class="laduje">⚠ nie udało się odczytać zdjęcia – zostanie pominięte</span>';
+    }
+  }
+}
+
+// Otwiera edytor od zdjęcia nr i (od 0) i odświeża zmienione miniatury.
+async function edytujOd(i) {
+  await dodawanieZdjec;
+  if (!zdjecia.length) return;
+  const { edytujZdjecia } = await import('./edytor-zdjecia.js');
+  let wynik = null;
+  try { wynik = await edytujZdjecia(zdjecia, i); } catch (e) { alert('Nie udało się otworzyć zdjęcia: ' + e.message); }
+  if (!wynik) return;
+  if (wynik.filtrDlaWszystkich) zaznaczFiltrDomyslny(wynik.filtrDlaWszystkich);
+  await odnowMiniatury(wynik.zmienione.map((n) => zdjecia[n]));
 }
 
 function dodajZdjecia(pliki) {
@@ -1376,34 +1454,22 @@ const akcje = {
     const r = await N.sprawdzKluczOpenAI(klucz, document.getElementById('modelTranskrypcji').value.trim() || N.MODEL_DOMYSLNY);
     wynik.innerHTML = `<div class="${r.ok ? 'karta podpowiedz' : 'flaga'}">${h(r.tekst)}</div>`;
   },
-  async zdjFiltr(el) {
-    const filtr = el.dataset.filtr;
-    ustawOpcjeSkanera('skanerFiltr', filtr);
-    document.querySelectorAll('[data-akcja=zdjFiltr]').forEach((b) => b.classList.toggle('wybrany', b.dataset.filtr === filtr));
-    // Zastosuj do już dodanych zdjęć i odśwież miniatury.
-    await dodawanieZdjec;
-    const Z = await import('./zdjecia.js');
-    for (const z of zdjecia) {
-      z.filtr = filtr;
-      const stara = z.mini; z.mini = null; odswiezZdjecia();
-      try { z.mini = await Z.miniatura(z); } catch (e) { z.mini = ''; }
-      if (stara) URL.revokeObjectURL(stara);
-      odswiezZdjecia();
-    }
+  // Filtr dla nowych zdjęć (już dodane zostają bez zmian).
+  zdjFiltr(el) {
+    zaznaczFiltrDomyslny(el.dataset.filtr);
+    if (zdjecia.length) pokazKomunikat(`Nowe zdjęcia dostaną filtr „${nazwaFiltra(el.dataset.filtr)}”`);
   },
-  async zdjEdytuj(el) {
+  // Wybrany filtr dla wszystkich już dodanych zdjęć.
+  async zdjFiltrWszystkie() {
     await dodawanieZdjec;
-    const i = +el.dataset.i; const z = zdjecia[i];
-    if (!z) return;
-    const { edytujZdjecie } = await import('./edytor-zdjecia.js');
-    let zmieniono = false;
-    try { zmieniono = await edytujZdjecie(z, i + 1, zdjecia.length); } catch (e) { alert('Nie udało się otworzyć zdjęcia: ' + e.message); }
-    if (!zmieniono) return;
-    const stara = z.mini; z.mini = null; odswiezZdjecia();
-    try { z.mini = await (await import('./zdjecia.js')).miniatura(z); } catch (e) { z.mini = ''; }
-    if (stara) URL.revokeObjectURL(stara);
-    odswiezZdjecia();
+    const filtr = filtrDomyslny();
+    const doZmiany = zdjecia.filter((z) => z.filtr !== filtr);
+    doZmiany.forEach((z) => { z.filtr = filtr; });
+    pokazKomunikat(`Filtr „${nazwaFiltra(filtr)}” ustawiony dla wszystkich zdjęć`);
+    await odnowMiniatury(doZmiany);
   },
+  zdjEdytuj(el) { return edytujOd(+el.dataset.i || 0); },
+  zdjPodglad() { if (zdjecia.length) return podgladZdjecPdf(); },
   zdjPrzesun(el) {
     const i = +el.dataset.i, j = i + +el.dataset.o;
     if (j < 0 || j >= zdjecia.length) return;
