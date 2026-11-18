@@ -56,8 +56,8 @@ async function wykonaj(tabela, tryb, operacja) {
   });
 }
 
-// Tylko w tym telefonie: ustawienia (klucze API!) i kolejka nagrań.
-const lokalna = {
+// Tylko w tym telefonie: ustawienia i kolejka nagrań.
+const lokalnaIDB = {
   pobierz: (tabela, id) => wykonaj(tabela, 'readonly', (t) => t.get(id)),
   wszystkie: (tabela) => wykonaj(tabela, 'readonly', (t) => t.getAll()),
   wgIndeksu: (tabela, indeks, wartosc) =>
@@ -107,6 +107,27 @@ const wspolna = {
     return Promise.resolve();
   },
 };
+
+// Zastępcza pamięć (np. Safari w trybie prywatnym, gdzie IndexedDB nie działa):
+// dane żyją tylko do zamknięcia aplikacji.
+const pamiec = new Map();
+const tab = (t) => { if (!pamiec.has(t)) pamiec.set(t, new Map()); return pamiec.get(t); };
+const lokalnaPamiec = {
+  pobierz: async (t, id) => tab(t).get(id),
+  wszystkie: async (t) => [...tab(t).values()],
+  wgIndeksu: async (t, i, w) => [...tab(t).values()].filter((o) => o[i] === w),
+  zapisz: async (t, o) => { tab(t).set(o.id, o); },
+  usun: async (t, id) => { tab(t).delete(id); },
+};
+let lokalnaDziala = null;
+async function lokalnaBaza() {
+  if (lokalnaDziala === null) {
+    try { await otworz(); lokalnaDziala = true; } catch (e) { lokalnaDziala = false; console.warn('IndexedDB niedostępne – pamięć tymczasowa'); }
+  }
+  return lokalnaDziala ? lokalnaIDB : lokalnaPamiec;
+}
+const lokalna = Object.fromEntries(['pobierz', 'wszystkie', 'wgIndeksu', 'zapisz', 'usun']
+  .map((f) => [f, async (...a) => (await lokalnaBaza())[f](...a)]));
 
 const wybierz = (tabela) => (WSPOLNE.includes(tabela) ? wspolna : lokalna);
 export const baza = {

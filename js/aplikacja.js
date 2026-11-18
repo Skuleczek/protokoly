@@ -645,7 +645,7 @@ PWA.przyNowejWersji(pokazPasekAktualizacji);
 function ekranInstalacja() {
   const status = PWA.zainstalowana() ? '<div class="karta podpowiedz">✓ Aplikacja jest uruchomiona z ikony na ekranie głównym.</div>' : '';
   ekran.innerHTML = `
-    <header class="pasek"><a class="wstecz" href="#/ustawienia">‹</a><h1>Instalacja</h1></header>
+    <header class="pasek"><a class="wstecz" href="${C.sesja ? "#/ustawienia" : "#/"}">‹</a><h1>Instalacja</h1></header>
     <main>
       ${status}
       ${PWA.moznaZainstalowac() ? '<button class="duzy glowny" data-akcja="zainstaluj">📲 Zainstaluj teraz</button>' : ''}
@@ -1107,14 +1107,17 @@ function ekranLogowania(stan, blad = '') {
   const tresci = {
     logowanie: `
       <p>Wpisz swoje <b>imię</b> oraz <b>6-cyfrowy kod</b> otrzymany od administratora.</p>
-      <label class="pole">Imię <input id="logImie" type="text" autocomplete="given-name"></label>
-      <label class="pole">Kod <input id="logKod" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></label>
+      ${PWA.toIPhone() && !PWA.zainstalowana() ? `<div class="flaga">📲 <b>iPhone:</b> najpierw dodaj aplikację do ekranu głównego, a dopiero potem zaloguj się – <b>uruchamiając ją z ikony</b>.
+        Safari i aplikacja z ikony mają na iPhonie osobne logowanie, a kod działa tylko raz.
+        <a href="#/instalacja">Jak dodać ikonę?</a></div>` : ''}
+      <label class="pole">Imię <input id="logImie" type="text" autocomplete="off" autocapitalize="words" autocorrect="off" spellcheck="false"></label>
+      <label class="pole">Kod <input id="logKod" type="text" inputmode="numeric" autocomplete="one-time-code" autocorrect="off" spellcheck="false" placeholder="np. 296471"></label>
       <button class="duzy glowny" data-akcja="zaloguj">Zaloguj</button>
-      <p class="info">Kod działa jeden raz. Na nowym telefonie lub komputerze poproś administratora o nowy kod.</p>`,
+      <p class="info">Kod działa jeden raz i jest ważny 48 godzin. Na nowym telefonie lub komputerze poproś administratora o nowy kod.</p>`,
     pierwszeKonto: `
       <p><b>Pierwsze uruchomienie.</b> Baza jest pusta – zakładasz konto <b>administratora</b>.
       Tylko administrator może dodawać kolejne osoby i wydawać im kody.</p>
-      <label class="pole">Twoje imię <input id="logImie" type="text" autocomplete="given-name"></label>
+      <label class="pole">Twoje imię <input id="logImie" type="text" autocomplete="off" autocapitalize="words" autocorrect="off" spellcheck="false"></label>
       <button class="duzy glowny" data-akcja="zalozAdmina">Załóż konto administratora</button>`,
     zablokowane: `<p>⛔ To konto zostało <b>zablokowane</b> przez administratora.</p>
       <button class="duzy" data-akcja="sprobujPonownie">Sprawdź ponownie</button>`,
@@ -1460,15 +1463,25 @@ const akcje = {
   async zaloguj() {
     const imie = document.getElementById('logImie').value;
     const kod = document.getElementById('logKod').value;
-    if (!imie.trim() || kod.replace(/\D/g, '').length !== 6) return ekranLogowania('logowanie', 'Wpisz imię oraz 6 cyfr kodu.');
+    const cyfry = kod.replace(/\D/g, '');
+    const blad = (tekst) => { ekranLogowania('logowanie', tekst); document.getElementById('logImie').value = imie; document.getElementById('logKod').value = kod; };
+    if (!imie.trim()) return blad('Wpisz imię.');
+    if (cyfry.length !== 6) return blad(`Kod musi mieć 6 cyfr – wpisano ${cyfry.length}${cyfry ? ` („${cyfry}”)` : ''}.`);
+    const przycisk = document.querySelector('[data-akcja=zaloguj]');
+    przycisk.disabled = true; przycisk.textContent = '⏳ Logowanie…';
     try {
-      const w = await C.zalogujKodem(imie, kod);
+      const w = await C.zalogujKodem(imie, cyfry);
       if (w.stan === 'ok') { pokazKomunikat(`Witaj, ${C.sesja.imie}!`); idzDo('#/'); return pokaz(); }
       ekranLogowania(w.stan);
     } catch (e) {
-      ekranLogowania('logowanie', navigator.onLine
-        ? 'Nieprawidłowe imię lub kod, albo kod wygasł / został już użyty.'
-        : 'Brak internetu – logowanie wymaga połączenia.');
+      console.error(e);
+      if (!navigator.onLine) return blad('Brak internetu – logowanie wymaga połączenia.');
+      if (e.code === 'permission-denied') {
+        return blad(`Serwer nie przyjął kodu. Sprawdzono: imię „${imie.trim()}” (konto: ${C.idKonta(imie)}), kod ${cyfry}.
+          Możliwe przyczyny: imię inne niż u administratora · kod już użyty (np. wcześniej w Safari lub innej przeglądarce) · kod starszy niż 48 godzin · konto zablokowane.
+          Poproś administratora o nowy kod i sprawdź, jak dokładnie wpisał Twoje imię.`);
+      }
+      blad(`Logowanie nie powiodło się z przyczyn technicznych (${e.code || e.name}: ${e.message}).${C.trybPamieci ? ' Przeglądarka nie pozwala zapisywać danych – wyłącz tryb prywatny Safari.' : ''} Spróbuj ponownie za chwilę; jeśli się powtarza – przekaż ten komunikat administratorowi.`);
     }
   },
   async zalozAdmina() {
@@ -1506,7 +1519,7 @@ const akcje = {
     ekranUzytkownicy();
   },
   async udostepnijKod() {
-    const tekst = `Kod do aplikacji Protokoły: ${ostatniKod.kod}\nImię przy logowaniu: ${ostatniKod.imie}\nAdres: ${location.origin}${location.pathname}\nKod działa jeden raz, ważny do ${godzinaPL(ostatniKod.wazneDo.getTime())}.`;
+    const tekst = `Kod do aplikacji Protokoły: ${ostatniKod.kod}\nImię przy logowaniu: ${ostatniKod.imie}\nAdres: ${location.origin}${location.pathname}\nKod działa jeden raz, ważny do ${godzinaPL(ostatniKod.wazneDo.getTime())}.\niPhone: najpierw dodaj stronę do ekranu głównego (Safari → Udostępnij → Do ekranu początkowego) i zaloguj się dopiero z ikony.`;
     if (navigator.share) { try { await navigator.share({ text: tekst }); } catch (e) { /* anulowano */ } }
     else { try { await navigator.clipboard.writeText(tekst); pokazKomunikat('Skopiowano – wklej w SMS'); } catch (e) { alert(tekst); } }
   },
@@ -1716,6 +1729,8 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) zapis
 // Przełączanie ekranów
 // ------------------------------------------------------------
 async function pokaz() {
+  // Instrukcja instalacji jest dostępna także przed zalogowaniem.
+  if (!C.sesja && location.hash.startsWith('#/instalacja')) return ekranInstalacja();
   if (!C.sesja) return startLogowania();
   // Wychodząc z protokołu zapamiętaj, że był już zapisany – przy powrocie braki będą wyróżnione.
   if (biezacy && !location.hash.includes(biezacy.id) && !biezacy.zapisany) {

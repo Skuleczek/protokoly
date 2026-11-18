@@ -12,11 +12,29 @@ import { KONFIG_FIREBASE, WAZNOSC_KODU_GODZ } from './konfiguracja.js';
 
 const app = F.initializeApp(KONFIG_FIREBASE);
 export const auth = F.getAuth(app);
+// Czy przeglądarka pozwala zapisywać dane w telefonie (IndexedDB)?
+// Na iPhonie w trybie prywatnym / trybie blokady – czasem nie.
+async function zapisWTelefonieDziala() {
+  try {
+    await new Promise((ok, nie) => {
+      const z = indexedDB.open('test-zapisu');
+      z.onsuccess = () => { z.result.close(); ok(); };
+      z.onerror = () => nie(z.error);
+      setTimeout(() => nie(new Error('czas')), 3000);
+    });
+    return true;
+  } catch (e) { return false; }
+}
+export const trybPamieci = !(await zapisWTelefonieDziala());
+
 // Pamięć podręczna w telefonie: dane są dostępne bez zasięgu,
 // a zmiany zrobione offline wysyłają się same, gdy wróci internet.
+// Gdy zapis w telefonie nie działa – tryb awaryjny w pamięci (wymaga internetu).
 export const fs = F.initializeFirestore(app, {
   ignoreUndefinedProperties: true,
-  localCache: F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }),
+  localCache: trybPamieci
+    ? F.memoryLocalCache()
+    : F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }),
 });
 
 // Tryb testowy na komputerze programisty (lokalny emulator Firebase).
@@ -107,6 +125,7 @@ export async function sprawdzLogowanie() {
 export async function zalogujKodem(imie, kod) {
   const konto = idKonta(imie);
   const czystyKod = String(kod).replace(/\D/g, '');
+  if (!auth.currentUser) await F.signInAnonymously(auth);
   const uid = auth.currentUser.uid;
   const b = F.writeBatch(fs);
   b.set(F.doc(fs, 'urzadzenia', uid), { konto, kod: czystyKod, opis: opisUrzadzenia(), utworzono: F.serverTimestamp() });
