@@ -99,20 +99,20 @@ service cloud.firestore {
 
     // ---------- zdjęcia przeglądu ----------
     // zdjecia = miniatura i opis, zdjeciaDane = pełne zdjęcie (osobno, żeby lista była lekka).
-    // Dodaje członek zespołu (jako autor), usuwa autor albo administrator. Zdjęć się nie zmienia.
+    // Dodaje, czyta i usuwa każdy członek zespołu (autor zapisywany przy dodaniu). Zdjęć się nie zmienia.
     match /zdjecia/{id} {
       allow read: if czlonek();
       allow create: if czlonek() && request.resource.data.autor == mojeKontoId()
         && request.resource.data.mini is string && request.resource.data.mini.size() < 60000;
       allow update: if false;
-      allow delete: if admin() || (czlonek() && resource.data.autor == mojeKontoId());
+      allow delete: if czlonek();
     }
     match /zdjeciaDane/{id} {
       allow read: if czlonek();
       allow create: if czlonek() && request.resource.data.autor == mojeKontoId()
         && request.resource.data.dane is string;
       allow update: if false;
-      allow delete: if admin() || (czlonek() && resource.data.autor == mojeKontoId());
+      allow delete: if czlonek();
     }
 
     // ---------- klucze API (OpenAI, Anthropic) – opcja A ----------

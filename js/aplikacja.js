@@ -214,8 +214,8 @@ async function ekranPrzeglad(id) {
       <section class="karta zdjecia-przegladu">
         <h3>📷 Zdjęcia przeglądu (${fotki.length})</h3>
         ${fotki.length ? `<div class="mini-zdjecia">${fotki.map((z) => `<div class="mini-zdjecie">
-          <img src="${h(z.mini)}" alt="" loading="lazy">
-          ${mozeUsunacProtokol(z) ? `<button data-akcja="usunZdjeciePrzegladu" data-id="${z.id}" aria-label="Usuń zdjęcie">✕</button>` : ''}
+          <img src="${h(z.mini)}" alt="" loading="lazy" title="Dodał(a): ${h(z.autorImie || '–')}">
+          <button data-akcja="usunZdjeciePrzegladu" data-id="${z.id}" aria-label="Usuń zdjęcie">✕</button>
         </div>`).join('')}</div>` : '<p class="info">Zdjęcia trafią do osobnego pliku PDF (bez filtrów i przycinania). Widzi je cały zespół.</p>'}
         <div class="rzad">
           <label class="duzy przycisk-link wybor-pliku">📷 Dodaj zdjęcia

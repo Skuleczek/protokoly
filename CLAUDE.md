@@ -65,7 +65,7 @@
   - `sekrety/klucze`: klucze API i modele, ważność kluczy (**opcja A**: czytają wszyscy członkowie, pisze administrator),
   - `wspolne/slownik`: terminy; czyta i pisze każdy członek, podpisany polem `zmienil`,
   - `admin/budzet`: saldo, kurs; tylko administrator,
-  - `zdjecia/{id}` {przegladId, grupaId, mini (dataURL ≤ 60 KB), szer, wys, rozmiar, autor, autorImie, utworzono} i `zdjeciaDane/{id}` {dane: dataURL JPEG ≤ ~650 KB, max 1600 px}; tworzy członek jako autor, bez edycji, usuwa autor lub administrator. Nie ma ich w kopii zapasowej (za duże). Limit Firestore 1 GB – licznik w Koszty → „Policz miejsce”,
+  - `zdjecia/{id}` {przegladId, grupaId, mini (dataURL ≤ 60 KB), szer, wys, rozmiar, autor, autorImie, utworzono} i `zdjeciaDane/{id}` {dane: dataURL JPEG ≤ ~650 KB, max 1600 px}; tworzy członek jako autor, bez edycji, usuwa każdy członek zespołu. Nie ma ich w kopii zapasowej (za duże). Limit Firestore 1 GB – licznik w Koszty → „Policz miejsce”,
   - `zuzycie/{id}`: rodzaj transkrypcja|ai|ai-test, tokeny/sekundy, konto, miesiac, kiedy.
 - Uprawnienia: wszyscy członkowie widzą i edytują wszystkie protokoły. Usuwać mogą autor (własne) i administrator (wszystko: grupy, przeglądy, cudze). Autora nie da się podmienić. Zablokowane konto natychmiast traci dostęp.
 - **Każda zmiana `firestore.rules` wymaga, by użytkownik wkleił plik w Firebase → Firestore Database → Rules → Publish.** Zawsze mu o tym przypomnij. Przed wysłaniem przetestuj reguły na emulatorze (ostatnio 55/55 + 18/18 dla zdjęć). `@firebase/rules-unit-testing` instaluj w osobnym folderze niż firebase-tools (konflikt wersji).
