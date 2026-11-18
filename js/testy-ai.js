@@ -105,13 +105,14 @@ export const SCENARIUSZE = [
   },
   {
     nazwa: 'Nagłówek',
-    zasada: 'Typ, nr fabryczny, rok, oznaczenie z wypowiedzi',
-    tekst: 'Centrala Klimor, numer fabryczny jeden dwa trzy cztery pięć, rok dwa tysiące osiemnasty, oznaczenie NW trzy.',
+    zasada: 'Typ, nr fabryczny, rok, oznaczenie, piętro z wypowiedzi',
+    tekst: 'Centrala Klimor, numer fabryczny jeden dwa trzy cztery pięć, rok dwa tysiące osiemnasty, oznaczenie NW trzy, stoi na piętrze minus jeden.',
     sprawdz: [
       ['typ zawiera Klimor', (p) => /klimor/i.test(p.naglowek.typ)],
       ['nr fabr. = 12345', (p) => p.naglowek.nrFabr.replace(/\s/g, '') === '12345'],
       ['rok = 2018', (p) => p.naglowek.rok.trim() === '2018'],
       ['oznaczenie = NW3', (p) => p.naglowek.oznaczenie.replace(/\s/g, '').toUpperCase() === 'NW3'],
+      ['pomieszczenie = -1', (p) => String(p.naglowek.pomieszczenie || '').replace(/\s/g, '').replace('−', '-') === '-1'],
     ],
   },
   {
@@ -146,7 +147,7 @@ export const SCENARIUSZE = [
 export function protokolTestowy(sc) {
   const s = sc.stanPoczatkowy || {};
   return {
-    id: 'test', naglowek: { typ: '', nrFabr: '', rok: '', oznaczenie: '' },
+    id: 'test', naglowek: { typ: '', nrFabr: '', rok: '', oznaczenie: '', pomieszczenie: '' },
     sekcje: { ...(s.sekcje || {}) }, punkty: JSON.parse(JSON.stringify(s.punkty || {})),
     dataKontroli: '2026-11-17', termin: '', uwagi: '', flagi: {},
   };

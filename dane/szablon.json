@@ -23,6 +23,11 @@
   {
    "id": "oznaczenie",
    "etykieta": "OZNACZENIE"
+  },
+  {
+   "id": "pomieszczenie",
+   "etykieta": "POMIESZCZENIE / PIĘTRO",
+   "opcjonalny": true
   }
  ],
  "sekcje": [

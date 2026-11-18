@@ -59,7 +59,7 @@ export function instrukcjaSystemowa(slownik) {
   return `Jesteś asystentem serwisanta central wentylacyjnych. Na podstawie transkrypcji jego swobodnej wypowiedzi (po polsku, język potoczny, skróty branżowe, błędy rozpoznawania mowy) wypełniasz protokół „${sz.nazwa}”. Zwracasz WYŁĄCZNIE zmiany wynikające z wypowiedzi, w podanym formacie JSON.
 
 # SZABLON PROTOKOŁU
-Nagłówek: typ (TYP CENTRALI), nrFabr (NR. FABR.), rok (ROK PRODUKCJI), oznaczenie (OZNACZENIE). Pole OBIEKT uzupełnia aplikacja – nie zwracaj go.
+Nagłówek: typ (TYP CENTRALI), nrFabr (NR. FABR.), rok (ROK PRODUKCJI), oznaczenie (OZNACZENIE), pomieszczenie (POMIESZCZENIE / PIĘTRO – opcjonalne, gdzie stoi centrala, np. „-1”, „piętro 2”, „kotłownia”). Pole OBIEKT uzupełnia aplikacja – nie zwracaj go.
 ${opisSzablonu(sz)}
 
 Stopka: termin (Termin następnego przeglądu), uwagi (Uwagi i zalecenia).
@@ -71,7 +71,7 @@ Stopka: termin (Termin następnego przeglądu), uwagi (Uwagi i zalecenia).
 4. LICZBY: pól liczbowych (prądy, nastawy, nastawa bezpiecznika) NIGDY nie zgaduj ani nie wyliczaj. Wpisuj tylko wartości wprost podane. Zapis z przecinkiem dziesiętnym („trzy przecinek dwa” → "3,2"), bez jednostki w polach prądów [A]. Nastawę wpisuj z jednostką, jeśli padła („250 paskali” → "250 Pa", „pięć stopni” → "5°C"). Jeżeli sekcja ma stan "jest", a nie podano wymaganej (nieopcjonalnej) wartości liczbowej – dodaj do do_sprawdzenia wpis typu "uzupelnij" dla tego pola (cytat: pusty tekst). Nie oznaczaj braku pól opcjonalnych.
 5. JĘZYK POTOCZNY I SKRÓTY: „presostat ok” → punkt presostatu "poz" w sekcji, o której właśnie mowa; „frost ok” → 7.2 "poz"; „filtry wymienione” → punkt „Wymiana filtrów” = "poz" (tak) we wskazanej sekcji filtrów; „filtry brudne/zapchane” → „Stan filtrów” = "neg" (zanieczyszczone); „do wymiany” przy filtrach/łożyskach/grzałkach/pasku → do_wymiany_lub_czyszczenia = true i stan "neg"; „lamele brudne, do mycia” → "neg" + do_wymiany_lub_czyszczenia = true.
 6. NIEJASNE = NIE ZGADUJ: jeśli nie wiadomo, którego punktu/sekcji dotyczy wypowiedź, albo ocena jest dwuznaczna (np. „filtry wymienione”, a jest kilka sekcji filtrów i nie wiadomo których), NIE zmieniaj tego pola – dodaj wpis do do_sprawdzenia z typem "sprawdz" i DOSŁOWNYM cytatem fragmentu wypowiedzi.
-7. NAGŁÓWEK, TERMIN, UWAGI: nagłówek wpisuj tylko, gdy podany (typ centrali, nr fabryczny, rok produkcji, oznaczenie, np. „NW1”). Termin następnego przeglądu w formacie MM.RRRR (np. „maj przyszłego roku” przy dacie kontroli 17.11.2026 → "05.2027"; „za pół roku” → licz od daty kontroli). Uwagi i zalecenia redaguj w poprawnym, rzeczowym stylu protokołu (pełne zdania, bez potocznych zwrotów), np. „Zalecana wymiana łożysk silnika wentylatora nawiewnego.”. Jeżeli protokół ma już uwagi, zwróć PEŁNY nowy tekst uwag: dotychczasowe + nowe (bez powtórzeń), chyba że serwisant każe coś usunąć lub zmienić. Gdy o uwagach nie było mowy – zwróć null.
+7. NAGŁÓWEK, TERMIN, UWAGI: nagłówek wpisuj tylko, gdy podany (typ centrali, nr fabryczny, rok produkcji, oznaczenie, np. „NW1”, pomieszczenie/piętro: piętro zapisuj liczbą, np. „piętro minus jeden” → "-1", „parter” → "0", „drugie piętro” → "2"; nazwę pomieszczenia zwięźle, np. "kotłownia"; gdy podano oba – "-1, kotłownia"). Termin następnego przeglądu w formacie MM.RRRR (np. „maj przyszłego roku” przy dacie kontroli 17.11.2026 → "05.2027"; „za pół roku” → licz od daty kontroli). Uwagi i zalecenia redaguj w poprawnym, rzeczowym stylu protokołu (pełne zdania, bez potocznych zwrotów), np. „Zalecana wymiana łożysk silnika wentylatora nawiewnego.”. Jeżeli protokół ma już uwagi, zwróć PEŁNY nowy tekst uwag: dotychczasowe + nowe (bez powtórzeń), chyba że serwisant każe coś usunąć lub zmienić. Gdy o uwagach nie było mowy – zwróć null.
 8. KOLEJNE NAGRANIA: dostajesz aktualny stan protokołu. Zwracaj tylko to, co wynika z nowych nagrań; późniejsza wypowiedź nadpisuje wcześniejszą i obecny stan („jednak łożyska sprawne” → 1.5 "poz", do_wymiany_lub_czyszczenia = false). Nie powtarzaj pól, o których nie było mowy.
 9. Pola obiektów, o których nie było mowy, ustaw na null. Nie wymyślaj informacji, których nie ma w wypowiedzi.
 10. podsumowanie: 1–2 krótkie zdania po polsku, co zostało uzupełnione.
@@ -90,7 +90,7 @@ const obiekt = (wlasciwosci) => ({
 
 export function kluczePol() {
   const sz = pobierzSzablon();
-  const klucze = ['naglowek.typ', 'naglowek.nrFabr', 'naglowek.rok', 'naglowek.oznaczenie', 'termin', 'uwagi'];
+  const klucze = ['naglowek.typ', 'naglowek.nrFabr', 'naglowek.rok', 'naglowek.oznaczenie', 'naglowek.pomieszczenie', 'termin', 'uwagi'];
   for (const s of sz.sekcje) {
     klucze.push(s.nr);
     for (const p of s.punkty) {
@@ -107,7 +107,7 @@ export function schematOdpowiedzi() {
   const sz = pobierzSzablon();
   const punkty = sz.sekcje.flatMap((s) => s.punkty);
   return obiekt({
-    naglowek: obiekt({ typ: tekstLubNull, nrFabr: tekstLubNull, rok: tekstLubNull, oznaczenie: tekstLubNull }),
+    naglowek: obiekt({ typ: tekstLubNull, nrFabr: tekstLubNull, rok: tekstLubNull, oznaczenie: tekstLubNull, pomieszczenie: tekstLubNull }),
     sekcje: { type: 'array', items: obiekt({
       nr: { type: 'string', enum: sz.sekcje.map((s) => s.nr) },
       stan: { type: 'string', enum: ['jest', 'brak'] },
@@ -159,7 +159,7 @@ function stanProtokolu(p) {
 }
 
 const WYNIK_TESTOWY = {
-  naglowek: { typ: null, nrFabr: null, rok: null, oznaczenie: null },
+  naglowek: { typ: null, nrFabr: null, rok: null, oznaczenie: null, pomieszczenie: null },
   sekcje: [{ nr: '1', stan: 'jest' }, { nr: '2', stan: 'jest' }, { nr: '8', stan: 'brak' }, { nr: '4', stan: 'jest' }],
   punkty: [
     ...['1.1', '1.2', '1.3', '2.1', '2.2', '2.3', '2.5'].map((nr) => ({ nr, stan: 'poz', do_wymiany_lub_czyszczenia: null, nastawa: null, rozmiar: null })),

@@ -40,7 +40,7 @@
 - `js/konfiguracja.js`: konfiguracja Firebase (jawna z założenia), ważność kodu (48 h), cennik `CENY` do panelu kosztów.
 - `js/nagrania.js`: nagrywanie (MediaRecorder, wake lock), kolejka offline, transkrypcja, klucze (`sekrety/klucze`), tryb testowy, słownik, zapis zużycia.
 - `js/ai.js`: instrukcja systemowa z zasadami, schemat JSON z szablonu, wywołanie Claude, `zastosujWynik`, `cofnijAI` (cofa tylko pola zmienione przez AI), sprawdzanie klucza.
-- `js/testy-ai.js`: 13 scenariuszy „Test jakości AI” (ostatni wynik u użytkownika: 38/38).
+- `js/testy-ai.js`: 13 scenariuszy „Test jakości AI” (ostatni wynik u użytkownika: 38/38; od dodania pola pomieszczenia jest 39 sprawdzeń).
 - `js/pdf.js`: PDF protokołu. Wymiary zmierzone z oryginału (stała `K`). **Nie pokazuje oznaczeń AI ani flag.**
 - `js/zdjecia.js`, `js/skaner.js`, `js/edytor-zdjecia.js`: Zdjęcia → PDF i skaner (wykrywanie kartki, homografia, filtry `oryginal|kontrast|szarosc|dokument|czarnobialy`, obrót).
 - `js/koszty.js`: podsumowanie zużycia, szacowane saldo i data końca środków.
@@ -58,7 +58,7 @@
   - `kody/{kontoId}_{kod}` {konto, wazneDo},
   - `urzadzenia/{uid}` {konto, kod, opis, utworzono},
   - `grupy/{id}`, `przeglady/{id}` {grupaId, data},
-  - `protokoly/{id}`: naglowek, sekcje, punkty (`stan poz|neg`, `dod`, `rozmiar`, `pobor/znamionowy/bezpiecznik`), termin, uwagi, flagi, transkrypcje (ai: czeka|gotowe|blad), ostatnieAI, autor/autorImie, zmienil/zmienilImie, dataKontroli, podpis (na przyszłość),
+  - `protokoly/{id}`: naglowek (typ, nrFabr, rok, oznaczenie, opcjonalne `pomieszczenie` = pomieszczenie/piętro; w PDF w wierszu OZNACZENIE po prawej, x=450 – komórka I2 oryginału), sekcje, punkty (`stan poz|neg`, `dod`, `rozmiar`, `pobor/znamionowy/bezpiecznik`), termin, uwagi, flagi, transkrypcje (ai: czeka|gotowe|blad), ostatnieAI, autor/autorImie, zmienil/zmienilImie, dataKontroli, podpis (na przyszłość),
   - `sekrety/klucze`: klucze API i modele, ważność kluczy (**opcja A**: czytają wszyscy członkowie, pisze administrator),
   - `wspolne/slownik`: terminy; czyta i pisze każdy członek, podpisany polem `zmienil`,
   - `admin/budzet`: saldo, kurs; tylko administrator,

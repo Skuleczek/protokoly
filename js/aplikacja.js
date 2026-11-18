@@ -347,8 +347,8 @@ async function ekranProtokol(id, gotowy = null) {
   const naglowekPusty = !Object.values(p.naglowek).some((v) => String(v).trim());
   const kandydaci = naglowekPusty ? await kandydaciDoKopii(przeglad) : [];
 
-  const pole = (klucz, etykieta, tryb = 'text') => `<label class="pole ${zmienioneAI(p).has('naglowek.' + klucz) ? 'ai' : ''}">${h(etykieta)}${zmienioneAI(p).has('naglowek.' + klucz) ? znakAI : ''}
-      <input type="text" ${tryb === 'liczba' ? 'inputmode="numeric"' : ''} value="${h(p.naglowek[klucz])}" data-naglowek="${klucz}">
+  const pole = (klucz, etykieta, tryb = 'text', dopisek = '') => `<label class="pole ${zmienioneAI(p).has('naglowek.' + klucz) ? 'ai' : ''}">${h(etykieta)}${dopisek}${zmienioneAI(p).has('naglowek.' + klucz) ? znakAI : ''}
+      <input type="text" ${tryb === 'liczba' ? 'inputmode="numeric"' : ''} value="${h(p.naglowek[klucz])}" ${tryb === 'opcja' ? 'placeholder="np. -1, kotłownia"' : ''} data-naglowek="${klucz}">
       ${htmlFlagi(p, 'naglowek.' + klucz)}
     </label>`;
 
@@ -360,7 +360,7 @@ async function ekranProtokol(id, gotowy = null) {
     </header>
     <main class="formularz ${p.zapisany ? 'pokaz-braki' : ''}">
       ${kandydaci.length ? `<div class="karta podpowiedz">
-        <b>Ta sama centrala co w poprzednim przeglądzie?</b> Dotknij, aby skopiować typ, nr fabr., rok i oznaczenie:
+        <b>Ta sama centrala co w poprzednim przeglądzie?</b> Dotknij, aby skopiować typ, nr fabr., rok, oznaczenie i pomieszczenie:
         ${kandydaci.slice(0, 8).map((k) => `<button class="wiersz" data-akcja="wezNaglowek" data-zrodlo="${k.protokol.id}">
           <span class="tytul">${h(P.opisCentrali(k.protokol))}</span>
           <span class="opis">nr fabr. ${h(k.protokol.naglowek.nrFabr || '–')} · ${P.dataPL(k.przeglad.data)}</span></button>`).join('')}
@@ -373,7 +373,10 @@ async function ekranProtokol(id, gotowy = null) {
         ${pole('nrFabr', 'NR. FABR.')}
         ${pole('rok', 'ROK PRODUKCJI', 'liczba')}
         <label class="pole">OBIEKT <input type="text" value="${h(grupa.nazwa)}" disabled></label>
-        ${pole('oznaczenie', 'OZNACZENIE')}
+        <div class="liczby naglowek-rzad">
+          ${pole('oznaczenie', 'OZNACZENIE')}
+          ${pole('pomieszczenie', 'POMIESZCZENIE / PIĘTRO', 'opcja', ' <span class="opcjonalny">(opcjonalnie)</span>')}
+        </div>
       </section>
 
       ${poprzedni ? `<button class="sredni" data-akcja="budowaJakPoprzednia" data-zrodlo="${poprzedni.id}">⧉ Sekcje (jest/brak) jak w poprzedniej centrali</button>` : ''}

@@ -34,7 +34,7 @@ export function dataPL(iso) {
  Wygląd zapisanego protokołu:
  {
    id, przegladId, grupaId, utworzono, zmieniono,
-   naglowek: { typ, nrFabr, rok, oznaczenie },   // OBIEKT = nazwa grupy (nie zapisujemy osobno)
+   naglowek: { typ, nrFabr, rok, oznaczenie, pomieszczenie },   // pomieszczenie/piętro opcjonalne; OBIEKT = nazwa grupy (nie zapisujemy osobno)
    sekcje:   { "1": "jest" | "brak" | null, ... },
    punkty:   { "1.1": { stan: "poz"|"neg"|null, dod: true|false|"tekst" },
                "1.6": { pobor: "", znamionowy: "", bezpiecznik: "" } },
@@ -53,7 +53,7 @@ export function nowyProtokol(przeglad, zmiany = {}) {
     grupaId: przeglad.grupaId,
     utworzono: teraz,
     zmieniono: teraz,
-    naglowek: { typ: '', nrFabr: '', rok: '', oznaczenie: '' },
+    naglowek: { typ: '', nrFabr: '', rok: '', oznaczenie: '', pomieszczenie: '' },
     sekcje: {},
     punkty: {},
     dataKontroli: przeglad.data,
