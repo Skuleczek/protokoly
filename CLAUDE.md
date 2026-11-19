@@ -11,7 +11,7 @@
   - Sesja w chmurze widzi ten folder tylko wtedy, gdy komputer użytkownika jest podłączony (Remote Control w aplikacji Claude na komputerze, folder udostępniony w Ustawieniach → Claude Code → Remote Control; w sesji: `list_computer_folders` → `request_computer_folder`). Gdy komputer jest niedostępny, poproś o wgranie pliku do czatu.
 
 ## 1. Cel aplikacji
-- PWA na telefon (Android i iPhone, także komputer) do **protokołów kontroli central wentylacyjnych** według wzoru firmy „FRAPOL” – Serwis (oryginał: plik xls „Protokół szczegółowy”, 13 sekcji, 43 punkty).
+- PWA na telefon (Android i iPhone, także komputer) do **protokołów kontroli central wentylacyjnych** według wzoru firmy serwisowej użytkownika (oryginał: plik xls „Protokół szczegółowy”, 13 sekcji, 43 punkty).
 - Używa jej zespół serwisantów. Wszyscy pracują na **wspólnej bazie** (Firebase), każdy protokół ma autora i ostatniego edytującego.
 - Główne funkcje:
   - Grupa (klient) → Przegląd (data) → Protokół (jedna centrala). Nazwa grupy = pole OBIEKT.
@@ -91,7 +91,7 @@
 ## 6. Zasady i konwencje
 - **Interfejs wyłącznie po polsku.** Kod: nazwy po polsku bez ogonków (`zapiszTeraz`, `ekranProtokol`), komentarze po polsku, wcięcia 2 spacje, apostrofy, średniki.
 - Wygląd: prosty, duże przyciski (min. 56 px, w rękawiczkach), wysoki kontrast, kolory w zmiennych CSS (`--niebieski #0b4f8a`, `--zielony`, `--czerwony`). Liczby po polsku (przecinek, `toLocaleString('pl-PL')`).
-- Nazwa w aplikacji/linku: „Protokoły kontroli” / „Protokoły”. **„FRAPOL” tylko w nagłówku PDF** (`szablon.firma`), nigdzie indziej (tytuł strony, słownik).
+- Nazwa w aplikacji/linku: „Protokoły kontroli” / „Protokoły”. **Nazwa firmy pojawia się wyłącznie w nagłówku gotowego PDF protokołu** (pole `firma` w `dane/szablon.json`). Nigdzie indziej jej nie używaj ani nie wpisuj: w interfejsie, tytule strony, słowniku, opisach, commitach i w tym pliku.
 - PDF: nazwy plików „<nazwa grupy> <dd.mm.rrrr>.pdf” (pojedynczy protokół: + oznaczenie centrali), ze spacjami i bez myślników. Przy zapisie polskie litery zamieniane na zwykłe (Chrome zmienia nazwy z polskimi literami na „download”). Kopia zapasowa: „Kopia protokolow <data>.json”.
 - PDF protokołu: zaznaczenie = krzyżyk, rozmiar łożyska w kratce „do wymiany” (z małym ✕, gdy zaznaczone), przy podpisie tylko data (bez „wykonał”, bez linii „podpis”).
 - Logowanie: **samo imię** (bez nazwiska). Przy powtórzonych imionach administrator dodaje literę, np. „Jan K.”.
