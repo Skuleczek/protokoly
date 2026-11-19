@@ -5,6 +5,10 @@
 - Nie buduj wszystkiego naraz. Gdy zmiana jest większa, pokaż krótko plan.
 - Jest jedna gałąź `main`, a push na nią **od razu publikuje** aplikację (GitHub Pages). Przed każdym pushem uruchom `narzedzia/publikuj.sh` (patrz pkt 5).
 - Mów uczciwie, co jest przetestowane (emulator, emulowany telefon), a czego nie da się sprawdzić tutaj (prawdziwy iPhone/Safari, prawdziwe klucze API).
+- **Folder z plikami użytkownika: `D:\Claude Projects\protokoły apk`** (na jego komputerze z Windows).
+  - Wszystkie potrzebne pliki (np. oryginalny xls protokołu, zdjęcia, zrzuty ekranu) **możesz z niego pobierać** bez pytania.
+  - **Możesz tam też zapisywać pliki**, jeśli jest taka potrzeba (np. wygenerowany PDF, raport, plik do sprawdzenia). **Za każdym razem** wyraźnie poinformuj użytkownika, co zapisałeś: nazwę pliku, w jakim celu i czy coś zostało nadpisane. Nie usuwaj i nie nadpisuj jego plików bez pytania.
+  - Sesja w chmurze widzi ten folder tylko wtedy, gdy komputer użytkownika jest podłączony (Remote Control w aplikacji Claude na komputerze, folder udostępniony w Ustawieniach → Claude Code → Remote Control; w sesji: `list_computer_folders` → `request_computer_folder`). Gdy komputer jest niedostępny, poproś o wgranie pliku do czatu.
 
 ## 1. Cel aplikacji
 - PWA na telefon (Android i iPhone, także komputer) do **protokołów kontroli central wentylacyjnych** według wzoru firmy „FRAPOL” – Serwis (oryginał: plik xls „Protokół szczegółowy”, 13 sekcji, 43 punkty).
@@ -107,10 +111,13 @@
 - `request_credential` nie działa dla `api.anthropic.com`, a sesja nie ma własnego klucza. Jakość AI testuje się ekranem „Test jakości AI” w aplikacji. Dokumentacja OpenAI (`platform.openai.com`, `developers.openai.com`) jest stąd zablokowana.
 - Nie używaj złożonych poleceń z `rm -rf` na zmiennych (blokuje je zabezpieczenie). Nie ruszaj `konfiguracja.js` (projekt Firebase) bez wyraźnej prośby.
 
-## 8. Stan prac (18.11.2026, wersja 2026.11.18-1024)
+## 8. Stan prac (19.11.2026, wersja 2026.11.19-1823)
 - ✅ Etapy 1–7 z `PLAN.md`: formularz i grupy, wspólna baza i logowanie, PDF i Zdjęcia → PDF, nagrywanie i transkrypcja, wypełnianie przez Claude, panel administratora (koszty, kopia, słownik, test AI), PWA (instalacja, offline, aktualizacje), skaner zdjęć.
+- ✅ 18–19.11.2026: pole „Pomieszczenie / piętro” (PDF w komórce I2), edytor wszystkich zdjęć ze strzałkami i osobnymi filtrami + podgląd PDF, zdjęcia przeglądu (wspólna baza, osobny PDF, zapis binarny), wybór miejsca zapisu PDF, lista zmian (pasek aktualizacji i Ustawienia → Co nowego).
 - 🔄 W trakcie / do potwierdzenia przez użytkownika:
-  - **logowanie kodem na iPhonie (Safari)**: poprawki wysłane, czekamy na wynik. Jeśli dalej nie działa, poproś o zrzut nowego komunikatu (pokazuje imię, kod, kod błędu) i wersję iOS,
-  - testy w terenie: jakość transkrypcji i AI na prawdziwym dyktowaniu, praca bez zasięgu, skaner na prawdziwych zdjęciach,
-  - użytkownik musi mieć wklejoną **aktualną** wersję `firestore.rules` w Firebase.
-- ⏭ Dalej: poprawki instrukcji AI po testach w terenie (każdy błędny przypadek dopisać też do `js/testy-ai.js`), ewentualne dopracowanie wykrywania kartki, **podpis palcem** (w PDF jest miejsce, pole `protokol.podpis`), ewentualnie aktualizacja cennika `CENY`.
+  - wklejenie **aktualnych** `firestore.rules` (151 linii, z `is bytes`) w Firebase,
+  - wynik „Koszty → Policz miejsce zajęte przez zdjęcia” na prawdziwych zdjęciach (średni rozmiar zdjęcia, ile zmieści się w 1 GB),
+  - **logowanie kodem na iPhonie (Safari)**: jeśli dalej nie działa, poproś o zrzut komunikatu (imię, kod, kod błędu) i wersję iOS,
+  - testy w terenie: jakość transkrypcji i AI na prawdziwym dyktowaniu, praca bez zasięgu, skaner na prawdziwych zdjęciach.
+- ⏭ Dalej: ewentualnie „📦 Archiwizuj zdjęcia” (PDF do pobrania + usunięcie zdjęć z bazy, gdy zabraknie miejsca), poprawki instrukcji AI po testach w terenie (każdy błędny przypadek dopisać też do `js/testy-ai.js`), dopracowanie wykrywania kartki, **podpis palcem** (w PDF jest miejsce, pole `protokol.podpis`), ewentualnie aktualizacja cennika `CENY`.
+- Repozytorium zostaje **publiczne** (GitHub Pages za darmo działa tylko z publicznego; bezpieczeństwo zapewniają reguły Firebase, a nie ukrycie kodu).
