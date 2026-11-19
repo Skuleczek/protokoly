@@ -65,10 +65,10 @@
   - `sekrety/klucze`: klucze API i modele, ważność kluczy (**opcja A**: czytają wszyscy członkowie, pisze administrator),
   - `wspolne/slownik`: terminy; czyta i pisze każdy członek, podpisany polem `zmienil`,
   - `admin/budzet`: saldo, kurs; tylko administrator,
-  - `zdjecia/{id}` {przegladId, grupaId, mini (dataURL ≤ 60 KB), szer, wys, rozmiar, autor, autorImie, utworzono} i `zdjeciaDane/{id}` {dane: dataURL JPEG ≤ ~650 KB, max 1600 px}; tworzy członek jako autor, bez edycji, usuwa każdy członek zespołu. Nie ma ich w kopii zapasowej (za duże). Limit Firestore 1 GB – licznik w Koszty → „Policz miejsce”,
+  - `zdjecia/{id}` {przegladId, grupaId, mini (dataURL ≤ 60 KB), szer, wys, rozmiar, autor, autorImie, utworzono} i `zdjeciaDane/{id}` {dane: **Bytes** (binarny JPEG ≤ 900 KB, max 1600 px, jakość 0,8); starsze zdjęcia mają `dane` jako tekst dataURL – aplikacja czyta oba formaty, reguły przyjmują oba}; tworzy członek jako autor, bez edycji, usuwa każdy członek zespołu. Nie ma ich w kopii zapasowej (za duże). Limit Firestore 1 GB – licznik w Koszty → „Policz miejsce”,
   - `zuzycie/{id}`: rodzaj transkrypcja|ai|ai-test, tokeny/sekundy, konto, miesiac, kiedy.
 - Uprawnienia: wszyscy członkowie widzą i edytują wszystkie protokoły. Usuwać mogą autor (własne) i administrator (wszystko: grupy, przeglądy, cudze). Autora nie da się podmienić. Zablokowane konto natychmiast traci dostęp.
-- **Każda zmiana `firestore.rules` wymaga, by użytkownik wkleił plik w Firebase → Firestore Database → Rules → Publish.** Zawsze mu o tym przypomnij. Przed wysłaniem przetestuj reguły na emulatorze (ostatnio 55/55 + 18/18 dla zdjęć). `@firebase/rules-unit-testing` instaluj w osobnym folderze niż firebase-tools (konflikt wersji).
+- **Każda zmiana `firestore.rules` wymaga, by użytkownik wkleił plik w Firebase → Firestore Database → Rules → Publish.** Zawsze mu o tym przypomnij. Przed wysłaniem przetestuj reguły na emulatorze (ostatnio 55/55 + 24/24 dla zdjęć). `@firebase/rules-unit-testing` instaluj w osobnym folderze niż firebase-tools (konflikt wersji).
 
 ## 5. Uruchamianie, testy, publikacja
 - Lokalnie: `python3 -m http.server 8123` w folderze repo → `http://localhost:8123/`. Dodatek `?emulator=1` (tylko na localhost) łączy z emulatorami (auth 9099, firestore 8180).
@@ -78,7 +78,7 @@
   - uruchamianie: `npx firebase emulators:exec --only firestore,auth --project protokoly-a15a9 "node test.js"` (Java jest, jar emulatora pobiera się sam),
   - testy przeglądarkowe: Playwright z preinstalowanym Chromium, `devices['Pixel 7' | 'iPhone 14']`. **WebKit/Safari nie jest dostępny.**
 - Przebudowa bibliotek (esbuild `--bundle --format=esm --minify --legal-comments=eof`):
-  - Firebase, `wejscie.js` eksportuje: `initializeApp; getAuth, signInAnonymously, onAuthStateChanged, connectAuthEmulator, signOut; initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache, connectFirestoreEmulator, doc, collection, getDoc, getDocs, getDocFromCache, getDocsFromCache, setDoc, deleteDoc, query, where, writeBatch, serverTimestamp, Timestamp, onSnapshotsInSync, waitForPendingWrites, updateDoc, arrayUnion`,
+  - Firebase, `wejscie.js` eksportuje: `initializeApp; getAuth, signInAnonymously, onAuthStateChanged, connectAuthEmulator, signOut; initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache, connectFirestoreEmulator, doc, collection, getDoc, getDocs, getDocFromCache, getDocsFromCache, setDoc, deleteDoc, query, where, writeBatch, serverTimestamp, Timestamp, onSnapshotsInSync, waitForPendingWrites, updateDoc, arrayUnion, Bytes`,
   - Anthropic: `export { default as Anthropic } from '@anthropic-ai/sdk'` (`--platform=browser`),
   - pdf-lib: `export { PDFDocument, rgb, PageSizes } from 'pdf-lib'; export { default as fontkit } from '@pdf-lib/fontkit'`.
 - **Publikacja:** `./narzedzia/publikuj.sh` (nowy numer wersji, lista plików w `sw.js` i `js/wersja.js`, sprawdzenie kluczy) → commit → `git push origin main`. Bez publikuj.sh telefony nie zobaczą aktualizacji.

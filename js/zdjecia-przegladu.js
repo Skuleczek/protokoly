@@ -5,14 +5,16 @@
 //   zdjecia/{id}      – mała miniatura i opis (szybka lista na ekranie przeglądu),
 //   zdjeciaDane/{id}  – pełne zdjęcie (pobierane dopiero do PDF).
 // Bez internetu zdjęcie czeka w telefonie i wysyła się samo (jak protokoły).
+// Pełne zdjęcie jest zapisane binarnie (Bytes) – o ok. 1/4 mniej miejsca niż tekst.
+// Starsze zdjęcia (zapisane jako tekst „data:image/jpeg;base64,…”) nadal działają.
 // ============================================================
 
 import { baza, noweId } from './baza.js';
-import { sesja } from './chmura.js';
+import { sesja, F } from './chmura.js';
 import * as S from './skaner.js';
 
 const MAKS_BOK = 1600;        // px – czytelne na całej stronie A4
-const MAKS_BAJTOW = 650000;   // pełne zdjęcie (dokument Firestore ma limit ok. 1 MB)
+const MAKS_BAJTOW = 900000;   // pełne zdjęcie (dokument Firestore ma limit 1 MB)
 const MINI_BOK = 220;
 
 const naDataUrl = (blob) => new Promise((ok, blad) => {
@@ -22,6 +24,11 @@ const naDataUrl = (blob) => new Promise((ok, blad) => {
   r.readAsDataURL(blob);
 });
 export const zDataUrl = async (adres) => (await fetch(adres)).blob();
+// Pełne zdjęcie z bazy -> Blob (nowy format binarny albo starszy tekstowy).
+async function naBlob(dane) {
+  if (typeof dane === 'string') return zDataUrl(dane);
+  return new Blob([dane.toUint8Array()], { type: 'image/jpeg' });
+}
 
 // Zmniejsza zdjęcie i zapisuje JPEG; przy dużym pliku obniża jakość/rozmiar.
 async function przygotujJpeg(img) {
@@ -29,7 +36,7 @@ async function przygotujJpeg(img) {
   for (let proba = 0; proba < 6; proba++) {
     c = S.pomniejsz(img, bok);
     blob = await S.doJpeg(c, jakosc);
-    if (blob.size * 1.37 <= MAKS_BAJTOW) break; // base64 jest o ok. 1/3 większy
+    if (blob.size <= MAKS_BAJTOW) break;
     if (jakosc > 0.55) jakosc -= 0.1; else bok = Math.round(bok * 0.8);
     c.width = 0;
   }
@@ -53,12 +60,12 @@ export async function dodajZdjecia(przeglad, pliki, postep = () => {}) {
     const m = S.pomniejsz(img, MINI_BOK);
     const mini = await naDataUrl(await S.doJpeg(m, 0.6));
     m.width = 0;
-    const dane = await naDataUrl(blob);
+    const dane = F.Bytes.fromUint8Array(new Uint8Array(await blob.arrayBuffer()));
     const id = noweId();
     const teraz = Date.now() + i; // zachowuje kolejność wyboru
     const wspolne = { id, przegladId: przeglad.id, grupaId: przeglad.grupaId, autor: sesja.konto };
     await baza.zapisz('zdjeciaDane', { ...wspolne, dane });
-    await baza.zapisz('zdjecia', { ...wspolne, mini, szer, wys, rozmiar: dane.length, autorImie: sesja.imie, utworzono: teraz });
+    await baza.zapisz('zdjecia', { ...wspolne, mini, szer, wys, rozmiar: blob.size, autorImie: sesja.imie, utworzono: teraz });
     dodane++;
     await new Promise((ok) => setTimeout(ok, 0)); // daj telefonowi odetchnąć
   }
@@ -94,7 +101,7 @@ export async function pdfZdjec(zdjecia, postep = () => {}) {
     postep(i, zdjecia.length);
     const d = await baza.pobierz('zdjeciaDane', zdjecia[i].id);
     if (!d || !d.dane) { brakujace++; continue; } // np. jeszcze niewysłane z innego telefonu
-    pliki.push({ blob: await zDataUrl(d.dane), szer: zdjecia[i].szer, wys: zdjecia[i].wys });
+    pliki.push({ blob: await naBlob(d.dane), szer: zdjecia[i].szer, wys: zdjecia[i].wys });
   }
   if (!pliki.length) throw new Error('Nie udało się pobrać żadnego zdjęcia. Sprawdź internet.');
   return { bajty: await jpgDoPdf(pliki), brakujace };

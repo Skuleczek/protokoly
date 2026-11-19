@@ -99,6 +99,8 @@ service cloud.firestore {
 
     // ---------- zdjęcia przeglądu ----------
     // zdjecia = miniatura i opis, zdjeciaDane = pełne zdjęcie (osobno, żeby lista była lekka).
+    // Pełne zdjęcie zapisywane binarnie (bytes). Tekst też jest przyjmowany – starsze wersje aplikacji
+    // (telefony przed „Odśwież”) zapisują zdjęcia jako tekst.
     // Dodaje, czyta i usuwa każdy członek zespołu (autor zapisywany przy dodaniu). Zdjęć się nie zmienia.
     match /zdjecia/{id} {
       allow read: if czlonek();
@@ -110,7 +112,7 @@ service cloud.firestore {
     match /zdjeciaDane/{id} {
       allow read: if czlonek();
       allow create: if czlonek() && request.resource.data.autor == mojeKontoId()
-        && request.resource.data.dane is string;
+        && (request.resource.data.dane is bytes || request.resource.data.dane is string);
       allow update: if false;
       allow delete: if czlonek();
     }

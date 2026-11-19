@@ -1,5 +1,11 @@
 [
  {
+  "wersja": "2026.11.19-1823",
+  "zmiany": [
+   "Zdjęcia przeglądu zajmują w bazie ok. 1/4 mniej miejsca – bez zmiany jakości. Wcześniej dodane zdjęcia działają jak dotąd."
+  ]
+ },
+ {
   "wersja": "2026.11.18-2104",
   "zmiany": [
    "Zdjęcia przeglądu: przycisk „📷 Dodaj zdjęcia” na ekranie przeglądu. Zdjęcia widzi cały zespół.",

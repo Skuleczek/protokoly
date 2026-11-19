@@ -7,7 +7,7 @@
 // Dane (protokoły) NIE są tu zapisywane – tym zajmuje się Firebase.
 // ============================================================
 
-const WERSJA = '2026.11.18-2104'; // @wersja
+const WERSJA = '2026.11.19-1823'; // @wersja
 const PLIKI = [ // @pliki-start
   './',
   './css/styl.css',
