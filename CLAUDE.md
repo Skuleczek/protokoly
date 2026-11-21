@@ -107,7 +107,7 @@
 - `request_credential` nie działa dla `api.anthropic.com`, a sesja nie ma własnego klucza. Jakość AI testuje się ekranem „Test jakości AI” w aplikacji. Dokumentacja OpenAI (`platform.openai.com`, `developers.openai.com`) jest stąd zablokowana.
 - Nie używaj złożonych poleceń z `rm -rf` na zmiennych (blokuje je zabezpieczenie). Nie ruszaj `konfiguracja.js` (projekt Firebase) bez wyraźnej prośby.
 
-## 8. Stan prac (18.11.2026, wersja 2026.11.18-1024)
+## 8. Stan prac (21.11.2026, wersja 2026.11.21-2013)
 - ✅ Etapy 1–7 z `PLAN.md`: formularz i grupy, wspólna baza i logowanie, PDF i Zdjęcia → PDF, nagrywanie i transkrypcja, wypełnianie przez Claude, panel administratora (koszty, kopia, słownik, test AI), PWA (instalacja, offline, aktualizacje), skaner zdjęć.
 - 🔄 W trakcie / do potwierdzenia przez użytkownika:
   - **logowanie kodem na iPhonie (Safari)**: poprawki wysłane, czekamy na wynik. Jeśli dalej nie działa, poproś o zrzut nowego komunikatu (pokazuje imię, kod, kod błędu) i wersję iOS,
