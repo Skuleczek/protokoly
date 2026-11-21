@@ -29,8 +29,29 @@ export const SCENARIUSZE = [
     tekst: 'Nawiew sprawny, ale łożyska do wymiany.',
     sprawdz: [
       ['1.1–1.3 pozytywne', (p) => ['1.1', '1.2', '1.3'].every((n) => stan(n)(p) === 'poz')],
-      ['1.5 = niesprawne', (p) => stan('1.5')(p) === 'neg'],
+      ['1.5 bez sprawne/niesprawne', (p) => !stan('1.5')(p)],
       ['1.5 „do wymiany” zaznaczone', (p) => (p.punkty['1.5'] || {}).dod === true],
+    ],
+  },
+  {
+    nazwa: 'Łożyska niesprawne',
+    zasada: '„niesprawne” zaznacza tylko niesprawne, bez „do wymiany”',
+    tekst: 'Na wywiewie łożyska niesprawne.',
+    sprawdz: [
+      ['2.5 = niesprawne', (p) => stan('2.5')(p) === 'neg'],
+      ['2.5 „do wymiany” niezaznaczone', (p) => (p.punkty['2.5'] || {}).dod !== true],
+    ],
+  },
+  {
+    nazwa: 'Łożyska do wymiany po sprawnej sekcji',
+    zasada: '„do wymiany” odznacza wcześniejsze „sprawne”, rozmiar gdy podany',
+    stanPoczatkowy: { sekcje: { 2: 'jest' }, punkty: { 2.1: { stan: 'poz' }, 2.2: { stan: 'poz' }, 2.3: { stan: 'poz' }, 2.5: { stan: 'poz' } } },
+    tekst: 'Łożyska na wywiewie do wymiany, rozmiar 6204.',
+    sprawdz: [
+      ['2.5 bez sprawne/niesprawne', (p) => !stan('2.5')(p)],
+      ['2.5 „do wymiany” zaznaczone', (p) => (p.punkty['2.5'] || {}).dod === true],
+      ['2.5 rozmiar = 6204', (p) => pole('2.5', 'rozmiar')(p).replace(/\s/g, '') === '6204'],
+      ['2.1 nadal sprawne', (p) => stan('2.1')(p) === 'poz'],
     ],
   },
   {

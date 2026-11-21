@@ -40,7 +40,7 @@
 - `js/konfiguracja.js`: konfiguracja Firebase (jawna z założenia), ważność kodu (48 h), cennik `CENY` do panelu kosztów.
 - `js/nagrania.js`: nagrywanie (MediaRecorder, wake lock), kolejka offline, transkrypcja, klucze (`sekrety/klucze`), tryb testowy, słownik, zapis zużycia.
 - `js/ai.js`: instrukcja systemowa z zasadami, schemat JSON z szablonu, wywołanie Claude, `zastosujWynik`, `cofnijAI` (cofa tylko pola zmienione przez AI), sprawdzanie klucza.
-- `js/testy-ai.js`: 13 scenariuszy „Test jakości AI” (ostatni wynik u użytkownika: 38/38; od dodania pola pomieszczenia jest 39 sprawdzeń).
+- `js/testy-ai.js`: 15 scenariuszy „Test jakości AI”, 45 sprawdzeń (ostatni wynik u użytkownika: 38/38 przy starszej wersji; po zmianie zasad łożysk 21.11.2026 czekamy na nowy wynik).
 - `js/pdf.js`: PDF protokołu. Wymiary zmierzone z oryginału (stała `K`). **Nie pokazuje oznaczeń AI ani flag.**
 - `js/zdjecia.js`, `js/skaner.js`, `js/edytor-zdjecia.js`: Zdjęcia → PDF i skaner. Edytor `edytujZdjecia(lista, start)` obsługuje wszystkie zdjęcia (strzałki ◀/▶, „Zastosuj filtr dla wszystkich”, Anuluj odrzuca całą edycję). Filtr jest osobny dla każdego zdjęcia, a chipy na ekranie głównym ustawiają filtr dla nowych zdjęć. „👁 Podgląd” pokazuje strony A4 (`ukladStrony` wspólny z PDF) (wykrywanie kartki, homografia, filtry `oryginal|kontrast|szarosc|dokument|czarnobialy`, obrót).
 - `js/zdjecia-przegladu.js`: zdjęcia dołączone do przeglądu (dodawanie, lista, usuwanie, PDF bez filtrów przez `jpgDoPdf`).
@@ -92,7 +92,7 @@
 - PDF protokołu: zaznaczenie = krzyżyk, rozmiar łożyska w kratce „do wymiany” (z małym ✕, gdy zaznaczone), przy podpisie tylko data (bez „wykonał”, bez linii „podpis”).
 - Logowanie: **samo imię** (bez nazwiska). Przy powtórzonych imionach administrator dodaje literę, np. „Jan K.”.
 - Dla wszystkich: Ustawienia = tryb testowy, słownik (edytuje każdy), wersja, instalacja. **Tylko administrator:** użytkownicy i kody, klucze API (z ważnością w dniach, ostrzeżenie 14 dni przed końcem), koszty, kopia zapasowa (przypomnienie po 14 dniach, widoczne tylko u administratora), test jakości AI.
-- Punkty opcjonalne: 1.4, 2.4, 3.3 i nastawa bezpiecznika 1.6/2.6. „Sekcja OK” ich nie zaznacza, wpisanie nastawy w 1.4/2.4 zaznacza „poprawne”. 1.5/2.5 mają pole „rozmiar łożyska”.
+- Punkty opcjonalne: 1.4, 2.4, 3.3 i nastawa bezpiecznika 1.6/2.6. „Sekcja OK” ich nie zaznacza, wpisanie nastawy w 1.4/2.4 zaznacza „poprawne”. 1.5/2.5 mają pole „rozmiar łożyska” (opcjonalne). W 1.5/2.5 „do wymiany” i „niesprawne” są niezależne – żadne nie zaznacza drugiego (ręcznie i w AI; AI ma do tego stan "puste" = odznacz). W innych punktach „do wymiany” nadal zaznacza też negatywną.
 - Zasady AI (w `js/ai.js`): cała sekcja OK → wszystkie pozytywne; wyjątki nadpisują; „brak” → podpunkty puste; liczb nigdy nie zgaduje (oznacza „uzupelnij”); niejasne → „sprawdz” z cytatem; uwagi redagowane rzeczowo; kolejne nagrania nadpisują. Po zmianach w instrukcji poproś użytkownika o „🛠 Administrator → 🧪 Test jakości AI” i wklejenie raportu.
 
 ## 7. Czego unikać (błędy, które już były)

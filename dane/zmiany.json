@@ -1,5 +1,11 @@
 [
  {
+  "wersja": "2026.11.21-1728",
+  "zmiany": [
+   "Nagrania głosowe – łożyska (1.5 i 2.5): „łożyska niesprawne” zaznacza tylko „niesprawne”, a „łożyska do wymiany” tylko „do wymiany” (i rozmiar, jeśli go podasz). Tak samo jak przy ręcznym zaznaczaniu."
+  ]
+ },
+ {
   "wersja": "2026.11.21-1724",
   "zmiany": [
    "Łożyska (1.5 i 2.5): zaznaczenie „do wymiany” nie zaznacza już samo „niesprawne”. Można zaznaczyć tylko „do wymiany”, a rozmiar łożyska wpisać, jeśli chcesz – nie jest wymagany."

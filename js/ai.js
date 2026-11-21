@@ -66,14 +66,14 @@ Stopka: termin (Termin następnego przeglądu), uwagi (Uwagi i zalecenia).
 
 # ZASADY INTERPRETACJI (bardzo ważne)
 1. CAŁA SEKCJA BEZ ZASTRZEŻEŃ: gdy serwisant mówi o całej sekcji, że jest sprawna/OK/w porządku (np. „sekcja wentylatora nawiewnego sprawna”, „nawiew ok”), zwróć sekcję ze stanem "jest" ORAZ stan "poz" dla WSZYSTKICH punktów wyboru tej sekcji – z wyjątkiem punktów opcjonalnych (oznaczonych [PUNKT OPCJONALNY]), które zaznaczasz tylko, gdy wprost o nich mowa. Pól liczbowych NIE wypełniaj z samej oceny sekcji.
-2. WYJĄTKI NADPISUJĄ REGUŁĘ SEKCJI: „nawiewna sprawna, ale łożyska do wymiany” → 1.1–1.3 "poz", 1.5 "neg" + do_wymiany_lub_czyszczenia = true; 1.4 tylko jeśli o nim mowa.
+2. WYJĄTKI NADPISUJĄ REGUŁĘ SEKCJI: „nawiewna sprawna, ale łożyska do wymiany” → 1.1–1.3 "poz", 1.5 stan "puste" + do_wymiany_lub_czyszczenia = true; 1.4 tylko jeśli o nim mowa.
 3. BRAK SEKCJI: „sekcja X brak”, „nie ma nagrzewnicy elektrycznej”, „bez rotora” → sekcja ze stanem "brak". Nie zwracaj żadnych punktów ani liczb tej sekcji.
 4. LICZBY: pól liczbowych (prądy, nastawy, nastawa bezpiecznika) NIGDY nie zgaduj ani nie wyliczaj. Wpisuj tylko wartości wprost podane. Zapis z przecinkiem dziesiętnym („trzy przecinek dwa” → "3,2"), bez jednostki w polach prądów [A]. Nastawę wpisuj z jednostką, jeśli padła („250 paskali” → "250 Pa", „pięć stopni” → "5°C"). Jeżeli sekcja ma stan "jest", a nie podano wymaganej (nieopcjonalnej) wartości liczbowej – dodaj do do_sprawdzenia wpis typu "uzupelnij" dla tego pola (cytat: pusty tekst). Nie oznaczaj braku pól opcjonalnych.
-5. JĘZYK POTOCZNY I SKRÓTY: „presostat ok” → punkt presostatu "poz" w sekcji, o której właśnie mowa; „frost ok” → 7.2 "poz"; „filtry wymienione” → punkt „Wymiana filtrów” = "poz" (tak) we wskazanej sekcji filtrów; „filtry brudne/zapchane” → „Stan filtrów” = "neg" (zanieczyszczone); „do wymiany” przy filtrach/łożyskach/grzałkach/pasku → do_wymiany_lub_czyszczenia = true i stan "neg"; „lamele brudne, do mycia” → "neg" + do_wymiany_lub_czyszczenia = true.
+5. JĘZYK POTOCZNY I SKRÓTY: „presostat ok” → punkt presostatu "poz" w sekcji, o której właśnie mowa; „frost ok” → 7.2 "poz"; „filtry wymienione” → punkt „Wymiana filtrów” = "poz" (tak) we wskazanej sekcji filtrów; „filtry brudne/zapchane” → „Stan filtrów” = "neg" (zanieczyszczone); „do wymiany” przy filtrach/grzałkach/pasku → do_wymiany_lub_czyszczenia = true i stan "neg"; ŁOŻYSKA (1.5, 2.5) – osobno, każde słowo zaznacza tylko swoją kratkę: „łożyska niesprawne” → stan "neg", do_wymiany_lub_czyszczenia = null (NIE zaznaczaj „do wymiany”); „łożyska do wymiany” → do_wymiany_lub_czyszczenia = true i stan "puste" (NIE zaznaczaj „niesprawne”); „łożyska niesprawne, do wymiany” → stan "neg" i do_wymiany_lub_czyszczenia = true; rozmiar łożyska wpisuj tylko, gdy podany; „lamele brudne, do mycia” → "neg" + do_wymiany_lub_czyszczenia = true.
 6. NIEJASNE = NIE ZGADUJ: jeśli nie wiadomo, którego punktu/sekcji dotyczy wypowiedź, albo ocena jest dwuznaczna (np. „filtry wymienione”, a jest kilka sekcji filtrów i nie wiadomo których), NIE zmieniaj tego pola – dodaj wpis do do_sprawdzenia z typem "sprawdz" i DOSŁOWNYM cytatem fragmentu wypowiedzi.
 7. NAGŁÓWEK, TERMIN, UWAGI: nagłówek wpisuj tylko, gdy podany (typ centrali, nr fabryczny, rok produkcji, oznaczenie, np. „NW1”, pomieszczenie/piętro: piętro zapisuj liczbą, np. „piętro minus jeden” → "-1", „parter” → "0", „drugie piętro” → "2"; nazwę pomieszczenia zwięźle, np. "kotłownia"; gdy podano oba – "-1, kotłownia"). Termin następnego przeglądu w formacie MM.RRRR (np. „maj przyszłego roku” przy dacie kontroli 17.11.2026 → "05.2027"; „za pół roku” → licz od daty kontroli). Uwagi i zalecenia redaguj w poprawnym, rzeczowym stylu protokołu (pełne zdania, bez potocznych zwrotów), np. „Zalecana wymiana łożysk silnika wentylatora nawiewnego.”. Jeżeli protokół ma już uwagi, zwróć PEŁNY nowy tekst uwag: dotychczasowe + nowe (bez powtórzeń), chyba że serwisant każe coś usunąć lub zmienić. Gdy o uwagach nie było mowy – zwróć null.
 8. KOLEJNE NAGRANIA: dostajesz aktualny stan protokołu. Zwracaj tylko to, co wynika z nowych nagrań; późniejsza wypowiedź nadpisuje wcześniejszą i obecny stan („jednak łożyska sprawne” → 1.5 "poz", do_wymiany_lub_czyszczenia = false). Nie powtarzaj pól, o których nie było mowy.
-9. Pola obiektów, o których nie było mowy, ustaw na null. Nie wymyślaj informacji, których nie ma w wypowiedzi.
+9. STAN PUNKTU: "poz", "neg", "puste" (odznacz oba – tylko tam, gdzie zasady tak mówią, np. łożyska tylko „do wymiany”) albo null (bez zmian). Pola obiektów, o których nie było mowy, ustaw na null. Nie wymyślaj informacji, których nie ma w wypowiedzi.
 10. podsumowanie: 1–2 krótkie zdania po polsku, co zostało uzupełnione.
 
 # SŁOWNIK TERMINÓW (nazwy producentów, skróty, żargon)
@@ -114,7 +114,8 @@ export function schematOdpowiedzi() {
     }) },
     punkty: { type: 'array', items: obiekt({
       nr: { type: 'string', enum: punkty.filter((p) => p.typ === 'wybor').map((p) => p.nr) },
-      stan: { anyOf: [{ type: 'string', enum: ['poz', 'neg'] }, { type: 'null' }] },
+      // "puste" = odznacz sprawne/niesprawne (np. łożyska tylko „do wymiany”), null = bez zmian.
+      stan: { anyOf: [{ type: 'string', enum: ['poz', 'neg', 'puste'] }, { type: 'null' }] },
       do_wymiany_lub_czyszczenia: { anyOf: [{ type: 'boolean' }, { type: 'null' }] },
       nastawa: tekstLubNull,
       rozmiar: tekstLubNull,
@@ -163,7 +164,7 @@ const WYNIK_TESTOWY = {
   sekcje: [{ nr: '1', stan: 'jest' }, { nr: '2', stan: 'jest' }, { nr: '8', stan: 'brak' }, { nr: '4', stan: 'jest' }],
   punkty: [
     ...['1.1', '1.2', '1.3', '2.1', '2.2', '2.3', '2.5'].map((nr) => ({ nr, stan: 'poz', do_wymiany_lub_czyszczenia: null, nastawa: null, rozmiar: null })),
-    { nr: '1.5', stan: 'neg', do_wymiany_lub_czyszczenia: true, nastawa: null, rozmiar: '6205' },
+    { nr: '1.5', stan: 'puste', do_wymiany_lub_czyszczenia: true, nastawa: null, rozmiar: '6205' },
     { nr: '4.3', stan: 'poz', do_wymiany_lub_czyszczenia: null, nastawa: null, rozmiar: null },
   ],
   liczby: [{ nr: '1.6', pole: 'pobor', wartosc: '3,2' }, { nr: '1.6', pole: 'znamionowy', wartosc: '4,1' }],
@@ -287,7 +288,8 @@ export function zastosujWynik(p, wynik) {
     if (brakSekcji(r.nr)) continue;
     const pkt = sz.sekcje.flatMap((s) => s.punkty).find((x) => x.nr === r.nr);
     const w = wpis(r.nr);
-    if (r.stan) { w.stan = r.stan; w.auto = false; }
+    if (r.stan === 'puste') { w.stan = null; w.auto = false; }
+    else if (r.stan) { w.stan = r.stan; w.auto = false; }
     if (r.do_wymiany_lub_czyszczenia !== null && pkt.dodatkowe && pkt.dodatkowe.typ === 'zaznacz') w.dod = !!r.do_wymiany_lub_czyszczenia;
     if (r.nastawa !== null && String(r.nastawa).trim() && pkt.dodatkowe && pkt.dodatkowe.typ === 'wartosc') {
       w.dod = String(r.nastawa).trim(); zmienione.add(`${r.nr}.dod`); usunFlagi(`${r.nr}.dod`);
