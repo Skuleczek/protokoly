@@ -23,6 +23,8 @@ export async function edytujZdjecia(lista, start = 0) {
   let nr = Math.min(Math.max(0, start), lista.length - 1);
   let img = null; // bieżące zdjęcie (pełne)
   let mal = null; // pomniejszone do wyświetlania
+  let widok = null; // `mal` obrócone tak jak w PDF (do trybu „Rogi”)
+  let widokObrot = -1;
   let stan = null; // stan bieżącego zdjęcia
   let podgladWlaczony = false;
   let wczytywanie = 0; // licznik – chroni przed szybkim klikaniem strzałek
@@ -72,21 +74,32 @@ export async function edytujZdjecia(lista, start = 0) {
   function rozmiesc() {
     if (!img) return;
     const W = obszar.clientWidth - 24; const H = obszar.clientHeight - 24;
-    const iw = img.naturalWidth || img.width; const ih = img.naturalHeight || img.height;
+    if (!mal) mal = S.pomniejsz(img, 1600);
+    if (!widok || widokObrot !== stan.obrot) {
+      // Kopia, bo S.obroc zwalnia płótno wejściowe.
+      const k = document.createElement('canvas'); k.width = mal.width; k.height = mal.height;
+      k.getContext('2d').drawImage(mal, 0, 0);
+      widok = S.obroc(k, stan.obrot); widokObrot = stan.obrot;
+    }
+    const pion = stan.obrot === 90 || stan.obrot === 270;
+    const iw0 = img.naturalWidth || img.width; const ih0 = img.naturalHeight || img.height;
+    const iw = pion ? ih0 : iw0; const ih = pion ? iw0 : ih0;
     const s = Math.min(W / iw, H / ih);
     const dw = Math.round(iw * s); const dh = Math.round(ih * s);
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    if (!mal) mal = S.pomniejsz(img, 1600);
     plotno.width = dw * dpr; plotno.height = dh * dpr;
     plotno.style.width = `${dw}px`; plotno.style.height = `${dh}px`;
     plotno.style.left = `${(obszar.clientWidth - dw) / 2}px`; plotno.style.top = `${(obszar.clientHeight - dh) / 2}px`;
-    plotno.getContext('2d').drawImage(mal, 0, 0, plotno.width, plotno.height);
+    plotno.getContext('2d').drawImage(widok, 0, 0, plotno.width, plotno.height);
     ramka.setAttribute('width', obszar.clientWidth); ramka.setAttribute('height', obszar.clientHeight);
     rysujRamke();
     if (podgladWlaczony) pokazPodglad();
   }
 
-  const pozycja = ([x, y]) => [plotno.offsetLeft + x * plotno.offsetWidth, plotno.offsetTop + y * plotno.offsetHeight];
+  // Rogi są zapisane we współrzędnych oryginału (0–1), a na ekranie zdjęcie jest obrócone.
+  const naEkran = ([u, v]) => ({ 90: [1 - v, u], 180: [1 - u, 1 - v], 270: [v, 1 - u] }[stan.obrot] || [u, v]);
+  const zEkranu = ([a, b]) => ({ 90: [b, 1 - a], 180: [1 - a, 1 - b], 270: [1 - b, a] }[stan.obrot] || [a, b]);
+  const pozycja = (r) => { const [x, y] = naEkran(r); return [plotno.offsetLeft + x * plotno.offsetWidth, plotno.offsetTop + y * plotno.offsetHeight]; };
 
   function rysujRamke() {
     if (!stan) return;
@@ -136,12 +149,12 @@ export async function edytujZdjecia(lista, start = 0) {
     let nowy;
     try { nowy = await S.wczytajObraz(lista[i].plik); } catch (e) {
       if (moj !== wczytywanie) return;
-      img = null; mal = null;
+      img = null; mal = null; widok = null;
       laduje.textContent = '⚠ Nie udało się odczytać tego zdjęcia.';
       return;
     }
     if (moj !== wczytywanie) return; // w międzyczasie przełączono na inne zdjęcie
-    img = nowy; mal = null;
+    img = nowy; mal = null; widok = null;
     okno.classList.remove('wczytuje');
     rozmiesc();
     ustawTryb();
@@ -152,26 +165,26 @@ export async function edytujZdjecia(lista, start = 0) {
   function rysujLupe(x, y) {
     const ctx = lupa.getContext('2d');
     const zoom = 3; const r = 70;
-    const sx = x * mal.width; const sy = y * mal.height;
-    const zakres = (r / zoom) * (mal.width / plotno.offsetWidth);
+    const sx = x * widok.width; const sy = y * widok.height;
+    const zakres = (r / zoom) * (widok.width / plotno.offsetWidth);
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 140, 140);
-    ctx.drawImage(mal, sx - zakres, sy - zakres, zakres * 2, zakres * 2, 0, 0, 140, 140);
+    ctx.drawImage(widok, sx - zakres, sy - zakres, zakres * 2, zakres * 2, 0, 0, 140, 140);
     ctx.strokeStyle = '#ff3b30'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(70, 50); ctx.lineTo(70, 90); ctx.moveTo(50, 70); ctx.lineTo(90, 70); ctx.stroke();
   }
   uchwyty.forEach((u) => {
     u.addEventListener('pointerdown', (e) => {
-      if (!mal) return;
+      if (!widok) return;
       e.preventDefault(); aktywny = +u.dataset.i; u.setPointerCapture(e.pointerId); u.classList.add('przeciagany');
       lupa.style.display = 'block';
-      rysujLupe(...stan.rogi[aktywny]);
+      rysujLupe(...naEkran(stan.rogi[aktywny]));
     });
     u.addEventListener('pointermove', (e) => {
       if (aktywny < 0) return;
       const r = plotno.getBoundingClientRect();
       const x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
       const y = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
-      stan.rogi[aktywny] = [x, y];
+      stan.rogi[aktywny] = zEkranu([x, y]);
       // Lupa po przeciwnej stronie niż palec.
       lupa.style.left = x < 0.5 ? '' : '12px'; lupa.style.right = x < 0.5 ? '12px' : '';
       rysujLupe(x, y); rysujRamke();
@@ -219,7 +232,8 @@ export async function edytujZdjecia(lista, start = 0) {
         if (podgladWlaczony) pokazPodglad(); rysujRamke();
         info.textContent = r ? '🪄 Wykryto kartkę' : 'Nie udało się wykryć kartki – ustaw rogi ręcznie.';
       } else if (co === 'cale') { stan.rogi = S.CALE_ZDJECIE.map((r) => [...r]); if (podgladWlaczony) pokazPodglad(); rysujRamke(); }
-      else if (co === 'obroc') { stan.obrot = (stan.obrot + 90) % 360; podgladWlaczony = true; ustawTryb(); }
+      // Obrót zostaje w bieżącym trybie (wcześniej wymuszał podgląd z filtrem i nie dało się ustawić rogów).
+      else if (co === 'obroc') { stan.obrot = (stan.obrot + 90) % 360; rozmiesc(); ustawTryb(); }
       else if (co === 'podglad') { podgladWlaczony = !podgladWlaczony; ustawTryb(); }
     });
     window.addEventListener('resize', rozmiesc);

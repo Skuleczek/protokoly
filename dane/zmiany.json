@@ -1,5 +1,11 @@
 [
  {
+  "wersja": "2026.11.21-1717",
+  "zmiany": [
+   "Zdjęcia → PDF: „⟳ Obróć” nie przełącza już na podgląd z filtrem. Obrócone zdjęcie widać też w trybie „Rogi”, więc można wygodnie ustawić rogi kartki."
+  ]
+ },
+ {
   "wersja": "2026.11.19-1823",
   "zmiany": [
    "Zdjęcia przeglądu zajmują w bazie ok. 1/4 mniej miejsca – bez zmiany jakości. Wcześniej dodane zdjęcia działają jak dotąd."
