@@ -363,25 +363,45 @@ a.wiersz::after {
 .zdj-przyciski button:disabled { color: var(--ramka); }
 
 /* ---------- Ekran nagrywania ---------- */
-.nagrywanie {
-  position: fixed; inset: 0; z-index: 40; background: var(--grafit); color: #fff;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px; text-align: center;
-  animation: zaciemnij 200ms ease-out;
+/* Niski pasek na dole, przykrywa dolne przyciski na czas nagrania */
+.pasek-nagrania {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 12px; padding-bottom: max(10px, env(safe-area-inset-bottom));
+  background: var(--grafit); color: #fff; border-top: 4px solid var(--czerwony);
+  animation: wysun 180ms var(--wyjscie);
 }
-.nagrywanie .kropka {
-  width: 110px; height: 110px; border-radius: 50%; background: #e53935;
-  box-shadow: 0 0 0 0 rgba(229, 57, 53, .6);
+@keyframes wysun { from { transform: translateY(100%); } to { transform: none; } }
+.pasek-nagrania[data-stan="pauza"] { border-top-color: var(--bursztyn); }
+.pasek-nagrania[data-stan="zatrzymane"] { border-top-color: var(--niebieski); }
+body.nagrywa .dolny { visibility: hidden; }
+body.nagrywa main { padding-bottom: 128px; }
+.pn-info { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.pn-kropka {
+  flex: 0 0 auto; width: 18px; height: 18px; border-radius: 50%; background: #e53935;
   animation: puls 1.4s ease-out infinite;
 }
+.pasek-nagrania[data-stan="pauza"] .pn-kropka { background: var(--bursztyn); animation: none; }
+.pasek-nagrania[data-stan="zatrzymane"] .pn-kropka { background: #8fb4d9; animation: none; }
 @keyframes puls {
-  0% { transform: scale(.94); box-shadow: 0 0 0 0 rgba(229, 57, 53, .6); }
-  70% { transform: scale(1); box-shadow: 0 0 0 26px rgba(229, 57, 53, 0); }
-  100% { transform: scale(.94); box-shadow: 0 0 0 0 rgba(229, 57, 53, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(229, 57, 53, .7); }
+  70% { box-shadow: 0 0 0 10px rgba(229, 57, 53, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(229, 57, 53, 0); }
 }
-.nagrywanie .czas { font-family: var(--czcionka-waska); font-size: 68px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.nagrywanie p { color: #c8d1d8; max-width: 420px; }
-.nagrywanie .duzy.stop { max-width: 420px; min-height: 84px; font-size: 24px; background: #fff; color: var(--grafit); border-color: #fff; box-shadow: 0 4px 0 #8b99a4; }
-.nagrywanie .sredni { max-width: 420px; background: transparent; color: #c8d1d8; border-color: #45545f; box-shadow: none; }
+.pn-czas { font-family: var(--czcionka-waska); font-size: 30px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.pn-opis { font-size: 13px; color: #c8d1d8; text-transform: uppercase; letter-spacing: .06em; }
+.pn-przyciski { display: flex; gap: 8px; }
+.pn-przycisk {
+  min-height: 56px; min-width: 96px; padding: 0 14px; border-radius: 10px; margin-bottom: 4px;
+  font-family: var(--czcionka); font-size: 17px; font-weight: 700; cursor: pointer;
+  background: var(--grafit-2); color: #fff; border: 2px solid #45545f; box-shadow: 0 4px 0 #0b1217;
+}
+.pn-przycisk:active { transform: translateY(4px); box-shadow: none; }
+.pn-przycisk:disabled { opacity: .6; }
+.pn-stop { background: #fff; color: var(--grafit); border-color: #fff; box-shadow: 0 4px 0 #8b99a4; }
+.pn-zapisz { background: var(--niebieski); border-color: #3c7fc0; box-shadow: 0 4px 0 var(--niebieski-krawedz); }
+.pn-usun { background: transparent; color: #ffb3ad; border-color: #6b3a36; box-shadow: none; }
+@media (max-width: 380px) { .pn-przycisk { min-width: 0; padding: 0 10px; font-size: 16px; } .pn-czas { font-size: 26px; } }
 
 /* ---------- Nagrania w protokole ---------- */
 .nagrania h3 { margin: 0 0 8px; font-family: var(--czcionka-waska); font-size: 22px; }
@@ -528,6 +548,8 @@ a.wiersz::after {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-  .nagrywanie .kropka { animation: none !important; box-shadow: 0 0 0 10px rgba(229, 57, 53, .35); }
+  .pn-kropka { animation: none !important; box-shadow: 0 0 0 4px rgba(229, 57, 53, .35); }
+  .pasek-nagrania { animation: none !important; }
+  .pn-przycisk:active { transform: none; }
   .duzy:active, .sredni:active, .wybor:active, .wiersz:active, .dolny .duzy:active { transform: none; }
 }

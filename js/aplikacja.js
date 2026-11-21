@@ -572,9 +572,13 @@ N.przyZmianieKolejki(({ protokolId }) => { if (biezacy && biezacy.id === protoko
 window.addEventListener('online', () => przetworzKolejke());
 window.addEventListener('offline', () => { odswiezNagrania(); odswiezStanKolejki(); });
 
-// Ekran nagrywania (na całą stronę).
+// Pasek nagrywania (niski, na dole ekranu). Protokół nad nim można przewijać i oglądać.
+// Stany: nagrywa → pauza ⇄ nagrywa → zatrzymane (Zapisz / Usuń).
 let nagrywarka = null;
+const formatCzasu = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
 async function rozpocznijNagranie() {
+  if (document.getElementById('pasekNagrania')) return; // już trwa nagrywanie
   await zapiszTeraz();
   const protokolId = biezacy.id;
   nagrywarka = new N.Nagrywarka();
@@ -587,33 +591,74 @@ async function rozpocznijNagranie() {
       : `Nie udało się włączyć mikrofonu: ${e.message}`);
     return;
   }
-  const okno = document.createElement('div');
-  okno.className = 'nagrywanie';
-  okno.innerHTML = `<div class="kropka"></div>
-    <div class="czas" id="czasNagrania">0:00</div>
-    <p>Mów swobodnie – np. „nawiew sprawny, łożyska do wymiany, prąd 3,2 ampera…”</p>
-    <button class="duzy stop" data-n="stop">⏹ Zakończ nagranie</button>
-    <button class="sredni" data-n="anuluj">Anuluj (nie zapisuj)</button>`;
-  document.body.appendChild(okno);
+  const n = nagrywarka;
+  let nagranie = null; // gotowe nagranie po „Stop”, czeka na „Zapisz” albo „Usuń”
+  const pasek = document.createElement('div');
+  pasek.id = 'pasekNagrania';
+  pasek.className = 'pasek-nagrania';
+  pasek.setAttribute('role', 'region');
+  pasek.setAttribute('aria-label', 'Nagrywanie');
+  document.body.appendChild(pasek);
+  document.body.classList.add('nagrywa');
+
+  const czas = () => formatCzasu(nagranie ? nagranie.sekundy : n.sekundy());
+  const rysuj = () => {
+    const stan = nagranie ? 'zatrzymane' : n.wPauzie() ? 'pauza' : 'nagrywa';
+    pasek.dataset.stan = stan;
+    const opis = { nagrywa: 'Nagrywanie', pauza: 'Pauza', zatrzymane: 'Nagranie gotowe' }[stan];
+    const przyciski = stan === 'zatrzymane'
+      ? `<button class="pn-przycisk pn-usun" data-n="usun">🗑 Usuń</button>
+         <button class="pn-przycisk pn-zapisz" data-n="zapisz">✓ Zapisz</button>`
+      : `${n.mozePauzowac() ? (stan === 'pauza'
+          ? '<button class="pn-przycisk" data-n="wznow">▶ Wznów</button>'
+          : '<button class="pn-przycisk" data-n="pauza">⏸ Pauza</button>') : ''}
+         <button class="pn-przycisk pn-stop" data-n="stop">⏹ Stop</button>`;
+    pasek.innerHTML = `<div class="pn-info"><span class="pn-kropka"></span>
+        <div><div class="pn-czas">${czas()}</div><div class="pn-opis">${opis}</div></div></div>
+      <div class="pn-przyciski">${przyciski}</div>`;
+  };
+  rysuj();
   const licznik = setInterval(() => {
-    const s = nagrywarka.sekundy();
-    document.getElementById('czasNagrania').textContent = `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+    const el = pasek.querySelector('.pn-czas');
+    if (el) el.textContent = czas();
   }, 250);
-  okno.addEventListener('click', async (e) => {
-    const co = e.target.closest('[data-n]');
-    if (!co) return;
+  const zamknij = () => {
     clearInterval(licznik);
-    okno.remove();
-    if (co.dataset.n === 'anuluj') { nagrywarka.anuluj(); nagrywarka = null; return; }
-    const nagranie = await nagrywarka.stop();
+    pasek.remove();
+    document.body.classList.remove('nagrywa');
     nagrywarka = null;
-    if (nagranie.sekundy < 1 || !nagranie.blob.size) return pokazKomunikat('Nagranie za krótkie');
-    await N.dodajDoKolejki(protokolId, nagranie);
-    pokazKomunikat(navigator.onLine ? 'Nagranie zapisane – zamieniam na tekst…' : 'Nagranie zapisane w telefonie – wyśle się po powrocie internetu');
-    odswiezNagrania();
-    przetworzKolejke();
+  };
+
+  pasek.addEventListener('click', async (e) => {
+    const co = e.target.closest('[data-n]');
+    if (!co || co.disabled) return;
+    const akcja = co.dataset.n;
+    if (akcja === 'pauza') { n.pauza(); return rysuj(); }
+    if (akcja === 'wznow') { n.wznow(); return rysuj(); }
+    if (akcja === 'stop') {
+      pasek.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+      nagranie = await n.stop();
+      return rysuj();
+    }
+    if (akcja === 'usun') {
+      if (!confirm('Usunąć to nagranie bez zapisywania?')) return;
+      zamknij();
+      return pokazKomunikat('Nagranie usunięte');
+    }
+    if (akcja === 'zapisz') {
+      zamknij();
+      if (nagranie.sekundy < 1 || !nagranie.blob.size) return pokazKomunikat('Nagranie za krótkie');
+      await N.dodajDoKolejki(protokolId, nagranie);
+      pokazKomunikat(navigator.onLine ? 'Nagranie zapisane – zamieniam na tekst…' : 'Nagranie zapisane w telefonie – wyśle się po powrocie internetu');
+      odswiezNagrania();
+      przetworzKolejke();
+    }
   });
 }
+// Ostrzeżenie przy zamykaniu/odświeżaniu strony w trakcie nagrania.
+window.addEventListener('beforeunload', (e) => {
+  if (document.getElementById('pasekNagrania')) { e.preventDefault(); e.returnValue = ''; }
+});
 
 // Administrator: ostrzeżenie o kończącej się ważności kluczy API.
 async function ostrzezeniaKluczy() {

@@ -1,5 +1,12 @@
 [
  {
+  "wersja": "NOWA",
+  "zmiany": [
+   "Nagrywanie głosu w małym pasku na dole ekranu zamiast na cały ekran – w trakcie nagrania możesz przewijać i oglądać protokół.",
+   "Nowe przyciski nagrania: ⏸ Pauza, ▶ Wznów i ⏹ Stop. Po zatrzymaniu wybierasz ✓ Zapisz albo 🗑 Usuń (bez zapisywania)."
+  ]
+ },
+ {
   "wersja": "2026.11.21-1807",
   "zmiany": [
    "Nowy wygląd aplikacji: ciemny górny i dolny pasek, wyraźniejsza czcionka, numery sekcji w „tabliczkach”, które zmieniają kolor, gdy sekcja jest zaznaczona.",

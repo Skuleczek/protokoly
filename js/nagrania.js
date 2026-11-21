@@ -98,11 +98,32 @@ export class Nagrywarka {
     this.rejestrator.ondataavailable = (e) => { if (e.data && e.data.size) this.kawalki.push(e.data); };
     this.rejestrator.start(1000);
     this.poczatek = Date.now();
+    this.pauzaOd = 0; // kiedy zaczęła się bieżąca pauza (0 = nagrywa)
+    this.pauzyRazem = 0; // suma czasu pauz (ms), nie liczy się do długości nagrania
     // Nie wygaszaj ekranu w trakcie nagrania (na niektórych telefonach wygaszenie przerywa nagranie).
     try { this.blokadaEkranu = await navigator.wakeLock.request('screen'); } catch (e) { /* brak obsługi */ }
   }
 
-  sekundy() { return this.poczatek ? (Date.now() - this.poczatek) / 1000 : 0; }
+  sekundy() {
+    if (!this.poczatek) return 0;
+    const teraz = this.pauzaOd || Date.now();
+    return (teraz - this.poczatek - this.pauzyRazem) / 1000;
+  }
+
+  // Pauza i wznowienie (MediaRecorder.pause/resume). Starsze przeglądarki mogą ich nie mieć.
+  mozePauzowac() { return !!(this.rejestrator && typeof this.rejestrator.pause === 'function'); }
+  wPauzie() { return !!this.pauzaOd; }
+  pauza() {
+    if (this.pauzaOd || this.rejestrator.state !== 'recording') return;
+    this.rejestrator.pause();
+    this.pauzaOd = Date.now();
+  }
+  wznow() {
+    if (!this.pauzaOd) return;
+    this.rejestrator.resume();
+    this.pauzyRazem += Date.now() - this.pauzaOd;
+    this.pauzaOd = 0;
+  }
 
   async stop() {
     const sekundy = this.sekundy();
