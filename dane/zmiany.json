@@ -1,5 +1,14 @@
 [
  {
+  "wersja": "2026.11.21-1807",
+  "zmiany": [
+   "Nowy wygląd aplikacji: ciemny górny i dolny pasek, wyraźniejsza czcionka, numery sekcji w „tabliczkach”, które zmieniają kolor, gdy sekcja jest zaznaczona.",
+   "Przyciski działają jak klawisze – widać, że zostały wciśnięte. Zaznaczone odpowiedzi są pełne: ✓ na zielono, ✕ na czerwono.",
+   "Lekkie animacje (np. okno „PDF gotowy” wysuwa się od dołu). Gdy w telefonie włączone jest „Ogranicz ruch” / „Usuń animacje”, animacji nie ma.",
+   "Działanie aplikacji, protokoły i zdjęcia – bez zmian."
+  ]
+ },
+ {
   "wersja": "2026.11.21-1728",
   "zmiany": [
    "Nagrania głosowe – łożyska (1.5 i 2.5): „łożyska niesprawne” zaznacza tylko „niesprawne”, a „łożyska do wymiany” tylko „do wymiany” (i rozmiar, jeśli go podasz). Tak samo jak przy ręcznym zaznaczaniu."

@@ -7,9 +7,17 @@
 // Dane (protokoły) NIE są tu zapisywane – tym zajmuje się Firebase.
 // ============================================================
 
-const WERSJA = '2026.11.21-1728'; // @wersja
+const WERSJA = '2026.11.21-1807'; // @wersja
 const PLIKI = [ // @pliki-start
   './',
+  './css/czcionki/barlow-condensed-latin-700-normal.woff2',
+  './css/czcionki/barlow-condensed-latin-ext-700-normal.woff2',
+  './css/czcionki/barlow-latin-500-normal.woff2',
+  './css/czcionki/barlow-latin-600-normal.woff2',
+  './css/czcionki/barlow-latin-700-normal.woff2',
+  './css/czcionki/barlow-latin-ext-500-normal.woff2',
+  './css/czcionki/barlow-latin-ext-600-normal.woff2',
+  './css/czcionki/barlow-latin-ext-700-normal.woff2',
   './css/styl.css',
   './dane/slownik-startowy.json',
   './dane/szablon.json',

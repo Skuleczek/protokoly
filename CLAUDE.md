@@ -50,7 +50,7 @@
 - `js/pwa.js`, `sw.js`, `manifest.json`, `ikony/`: instalacja, offline, pasek „Jest nowa wersja”. `js/wersja.js` jest generowany automatycznie.
 - `dane/szablon.json`: struktura protokołu (jedno źródło dla formularza, PDF i AI). `dane/slownik-startowy.json`: startowy słownik.
 - `firestore.rules`: reguły bezpieczeństwa. `narzedzia/`: `publikuj.sh`, `sprawdz-klucze.sh`. `PLAN.md`: etapy.
-- `css/styl.css`: cały wygląd.
+- `css/styl.css`: cały wygląd. `css/czcionki/`: Barlow 500/600/700 i Barlow Condensed 700 (SIL OFL, woff2, latin + latin-ext) – czcionka interfejsu, lokalnie (offline).
 
 ## 4. Firebase (projekt `protokoly-a15a9`)
 - Usługi: **Authentication** (tylko „Anonymous”, autoryzowana domena `skuleczek.github.io`) i **Cloud Firestore** (Standard, `europe-central2`, plan darmowy Spark). **Bez** Firebase Hosting i Realtime Database.
@@ -86,7 +86,7 @@
 
 ## 6. Zasady i konwencje
 - **Interfejs wyłącznie po polsku.** Kod: nazwy po polsku bez ogonków (`zapiszTeraz`, `ekranProtokol`), komentarze po polsku, wcięcia 2 spacje, apostrofy, średniki.
-- Wygląd: prosty, duże przyciski (min. 56 px, w rękawiczkach), wysoki kontrast, kolory w zmiennych CSS (`--niebieski #0b4f8a`, `--zielony`, `--czerwony`). Liczby po polsku (przecinek, `toLocaleString('pl-PL')`).
+- Wygląd (od 21.11.2026, „tabliczka znamionowa”): tło stal `--tlo #e3e8ec`, grafitowy górny/dolny pasek `--grafit #18232c` z granatową listwą, granat `--niebieski #0b4f8a` = akcje główne, sygnały `--zielony`, `--czerwony`, `--bursztyn` (braki/do sprawdzenia). Tytuły i numery: Barlow Condensed, reszta Barlow. Przyciski jak klawisze (dolna krawędź `--krawedz`, przy wciśnięciu się zapadają), numer sekcji w ciemnej tabliczce. Duże przyciski (min. 56 px, w rękawiczkach), wysoki kontrast, kolory tylko w zmiennych CSS. Animacje wyłącznie w CSS i krótkie; wszystko wyłącza `@media (prefers-reduced-motion: reduce)` na końcu `styl.css`. Nie dawaj animacji wejścia na `.sekcja` (przerysowuje się przy każdym kliknięciu). Poprzednia wersja wyglądu: tag `protokoly1.0`. Liczby po polsku (przecinek, `toLocaleString('pl-PL')`).
 - Nazwa w aplikacji/linku: „Protokoły kontroli” / „Protokoły”. **„FRAPOL” tylko w nagłówku PDF** (`szablon.firma`), nigdzie indziej (tytuł strony, słownik).
 - PDF: nazwy plików „<nazwa grupy> <dd.mm.rrrr>.pdf” (pojedynczy protokół: + oznaczenie centrali), ze spacjami i bez myślników. Przy zapisie polskie litery zamieniane na zwykłe (Chrome zmienia nazwy z polskimi literami na „download”). Kopia zapasowa: „Kopia protokolow <data>.json”.
 - PDF protokołu: zaznaczenie = krzyżyk, rozmiar łożyska w kratce „do wymiany” (z małym ✕, gdy zaznaczone), przy podpisie tylko data (bez „wykonał”, bez linii „podpis”).
