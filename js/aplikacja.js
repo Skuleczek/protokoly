@@ -296,7 +296,7 @@ function htmlPunkt(p, pkt) {
       <input type="text" value="${h(w[pole.id] ?? '')}" data-pole="${pole.id}" data-nr="${pkt.nr}">
       ${htmlFlagi(p, `${pkt.nr}.${pole.id}`)}
     </label>`).join('');
-  const pusty = !w.stan && !pkt.opcjonalny;
+  const pusty = !P.punktWypelniony(pkt, w);
   const ai = zmienioneAI(p).has(pkt.nr) || zmienioneAI(p).has(`${pkt.nr}.dod`);
   return `<div class="punkt ${pusty ? 'pusty' : ''} ${ai ? 'ai' : ''}" data-punkt="${pkt.nr}">
     <div class="punkt-nazwa"><b>${pkt.nr}.</b> ${h(pkt.nazwa)}${pkt.opcjonalny ? ' <span class="opcjonalny">(opcjonalnie)</span>' : ''}${ai ? znakAI : ''}</div>

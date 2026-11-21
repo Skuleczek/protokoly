@@ -115,7 +115,9 @@ export function ustawPunkt(p, nr, stan) {
 export function przelaczDodatkowe(p, nr) {
   const w = wpisPunktu(p, nr);
   w.dod = !w.dod;
-  if (w.dod && !w.stan) w.stan = 'neg'; // "do wymiany" zwykle idzie z negatywną
+  // Łożyska (1.5, 2.5 – punkty z polem rozmiaru): "do wymiany" zaznacza tylko kratkę.
+  // W pozostałych punktach "do wymiany" zwykle idzie z negatywną.
+  if (w.dod && !w.stan && !znajdzPunkt(nr).polaTekstowe) w.stan = 'neg';
   const s = sekcjaPunktu(nr);
   if (!p.sekcje[s]) p.sekcje[s] = 'jest';
   usunFlagi(p, nr);
@@ -147,6 +149,12 @@ export function kopiujBudowe(p, zrodlo) {
 }
 
 // Ile pól jeszcze brakuje (do plakietki na liście central).
+// Punkt wyboru jest wypełniony, gdy ma stan, jest opcjonalny
+// albo (łożyska 1.5, 2.5) zaznaczono samo "do wymiany".
+export function punktWypelniony(pkt, w) {
+  return !!(w.stan || pkt.opcjonalny || (pkt.polaTekstowe && w.dod === true));
+}
+
 export function postep(p) {
   let brakuje = 0;
   for (const s of szablon.sekcje) {
@@ -156,7 +164,7 @@ export function postep(p) {
     for (const pkt of s.punkty) {
       const w = p.punkty[pkt.nr] || {};
       if (pkt.typ === 'wybor') {
-        if (!w.stan && !pkt.opcjonalny) brakuje++;
+        if (!punktWypelniony(pkt, w)) brakuje++;
       } else {
         for (const pole of pkt.pola) {
           if (!pole.opcjonalne && !String(w[pole.id] ?? '').trim()) brakuje++;

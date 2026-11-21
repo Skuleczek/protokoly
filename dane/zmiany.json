@@ -1,5 +1,11 @@
 [
  {
+  "wersja": "2026.11.21-1724",
+  "zmiany": [
+   "Łożyska (1.5 i 2.5): zaznaczenie „do wymiany” nie zaznacza już samo „niesprawne”. Można zaznaczyć tylko „do wymiany”, a rozmiar łożyska wpisać, jeśli chcesz – nie jest wymagany."
+  ]
+ },
+ {
   "wersja": "2026.11.21-1717",
   "zmiany": [
    "Zdjęcia → PDF: „⟳ Obróć” nie przełącza już na podgląd z filtrem. Obrócone zdjęcie widać też w trybie „Rogi”, więc można wygodnie ustawić rogi kartki."
