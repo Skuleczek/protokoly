@@ -84,6 +84,8 @@ function wybierzFormat() {
   return formaty.find((f) => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(f)) || '';
 }
 
+// Nagranie składa się z fragmentów: „Pauza” zamyka fragment (osobny plik do wysłania),
+// „Wznów” zaczyna nowy na tym samym mikrofonie.
 export class Nagrywarka {
   async start() {
     if (!navigator.mediaDevices || !window.MediaRecorder) {
@@ -92,52 +94,57 @@ export class Nagrywarka {
     this.strumien = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
     });
-    const format = wybierzFormat();
-    this.rejestrator = new MediaRecorder(this.strumien, { ...(format ? { mimeType: format } : {}), audioBitsPerSecond: 32000 });
-    this.kawalki = [];
-    this.rejestrator.ondataavailable = (e) => { if (e.data && e.data.size) this.kawalki.push(e.data); };
-    this.rejestrator.start(1000);
-    this.poczatek = Date.now();
-    this.pauzaOd = 0; // kiedy zaczęła się bieżąca pauza (0 = nagrywa)
-    this.pauzyRazem = 0; // suma czasu pauz (ms), nie liczy się do długości nagrania
+    this.format = wybierzFormat();
+    this.zakonczone = 0; // sekundy zamkniętych fragmentów
+    this.nowyFragment();
     // Nie wygaszaj ekranu w trakcie nagrania (na niektórych telefonach wygaszenie przerywa nagranie).
     try { this.blokadaEkranu = await navigator.wakeLock.request('screen'); } catch (e) { /* brak obsługi */ }
   }
 
-  sekundy() {
-    if (!this.poczatek) return 0;
-    const teraz = this.pauzaOd || Date.now();
-    return (teraz - this.poczatek - this.pauzyRazem) / 1000;
+  nowyFragment() {
+    this.rejestrator = new MediaRecorder(this.strumien, { ...(this.format ? { mimeType: this.format } : {}), audioBitsPerSecond: 32000 });
+    this.kawalki = [];
+    const kawalki = this.kawalki;
+    this.rejestrator.ondataavailable = (e) => { if (e.data && e.data.size) kawalki.push(e.data); };
+    this.rejestrator.start(1000);
+    this.poczatek = Date.now();
   }
 
-  // Pauza i wznowienie (MediaRecorder.pause/resume). Starsze przeglądarki mogą ich nie mieć.
-  mozePauzowac() { return !!(this.rejestrator && typeof this.rejestrator.pause === 'function'); }
-  wPauzie() { return !!this.pauzaOd; }
-  pauza() {
-    if (this.pauzaOd || this.rejestrator.state !== 'recording') return;
-    this.rejestrator.pause();
-    this.pauzaOd = Date.now();
-  }
-  wznow() {
-    if (!this.pauzaOd) return;
-    this.rejestrator.resume();
-    this.pauzyRazem += Date.now() - this.pauzaOd;
-    this.pauzaOd = 0;
+  // Zamyka bieżący fragment i zwraca go jako { blob, sekundy }.
+  async zamknijFragment() {
+    if (!this.poczatek) return null;
+    const sekundy = (Date.now() - this.poczatek) / 1000;
+    this.poczatek = 0;
+    this.zakonczone += sekundy;
+    const rej = this.rejestrator;
+    const kawalki = this.kawalki;
+    await new Promise((ok) => { rej.onstop = ok; rej.stop(); });
+    const typ = rej.mimeType || (kawalki[0] && kawalki[0].type) || 'audio/webm';
+    return { blob: new Blob(kawalki, { type: typ }), sekundy };
   }
 
+  wPauzie() { return !this.poczatek; }
+  // Łączny czas nagrania (bez pauz).
+  sekundy() { return this.zakonczone + (this.poczatek ? (Date.now() - this.poczatek) / 1000 : 0); }
+
+  pauza() { return this.zamknijFragment(); }
+  wznow() { if (!this.poczatek) this.nowyFragment(); }
+
+  // Kończy nagrywanie; zwraca ostatni fragment (albo null, gdy był w pauzie).
   async stop() {
-    const sekundy = this.sekundy();
-    await new Promise((ok) => { this.rejestrator.onstop = ok; this.rejestrator.stop(); });
-    this.strumien.getTracks().forEach((t) => t.stop());
-    try { if (this.blokadaEkranu) await this.blokadaEkranu.release(); } catch (e) { /* trudno */ }
-    const typ = this.rejestrator.mimeType || (this.kawalki[0] && this.kawalki[0].type) || 'audio/webm';
-    return { blob: new Blob(this.kawalki, { type: typ }), sekundy };
+    const fragment = await this.zamknijFragment();
+    this.zwolnij();
+    return fragment;
+  }
+
+  zwolnij() {
+    if (this.strumien) this.strumien.getTracks().forEach((t) => t.stop());
+    try { if (this.blokadaEkranu) this.blokadaEkranu.release(); } catch (e) { /* trudno */ }
   }
 
   anuluj() {
     try { this.rejestrator.stop(); } catch (e) { /* już zatrzymany */ }
-    if (this.strumien) this.strumien.getTracks().forEach((t) => t.stop());
-    try { if (this.blokadaEkranu) this.blokadaEkranu.release(); } catch (e) { /* trudno */ }
+    this.zwolnij();
   }
 }
 
@@ -233,6 +240,7 @@ export function zapiszZuzycie(dane) {
 // Przetwarzanie kolejki
 // ------------------------------------------------------------
 let trwa = false;
+let jeszczeRaz = false;
 let sluchacze = [];
 export function przyZmianieKolejki(fn) { sluchacze.push(fn); }
 const powiadom = (zdarzenie) => sluchacze.forEach((fn) => { try { fn(zdarzenie); } catch (e) { console.error(e); } });
@@ -242,8 +250,10 @@ const powiadom = (zdarzenie) => sluchacze.forEach((fn) => { try { fn(zdarzenie);
  * @param {(protokolId, wpis) => Promise<void>} zapiszTranskrypcje – dopisuje tekst do protokołu
  */
 export async function przetworzKolejke(zapiszTranskrypcje, { tezBledy = false } = {}) {
-  if (trwa || (!navigator.onLine && !trybTestowy())) return;
+  if (!navigator.onLine && !trybTestowy()) return;
+  if (trwa) { jeszczeRaz = true; return; } // nowy fragment w trakcie – obsłużymy zaraz po bieżących
   trwa = true;
+  jeszczeRaz = false;
   try {
     const wszystkie = (await baza.wszystkie('nagrania')).sort((a, b) => a.utworzono - b.utworzono);
     for (const wpis of wszystkie) {
@@ -273,6 +283,7 @@ export async function przetworzKolejke(zapiszTranskrypcje, { tezBledy = false } 
   } finally {
     trwa = false;
   }
+  if (jeszczeRaz) await przetworzKolejke(zapiszTranskrypcje);
 }
 
 export async function ileWKolejce() {

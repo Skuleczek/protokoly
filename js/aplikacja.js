@@ -519,6 +519,8 @@ async function uruchomAI(protokolId, { ponow = false } = {}) {
     zapamietajAI(protokolId, false);
     if (zuzycie) N.zapiszZuzycie({ rodzaj: 'ai', ...zuzycie });
     pokazKomunikat('🤖 AI uzupełniło protokół – sprawdź pola z niebieskim tłem');
+    // W międzyczasie mógł dojść kolejny fragment nagrania – weź go od razu.
+    if ((p.transkrypcje || []).some((tr) => tr.ai === 'czeka')) setTimeout(() => uruchomAI(protokolId), 0);
   } catch (e) {
     console.error(e);
     aiTrwa.delete(protokolId);
@@ -574,8 +576,19 @@ window.addEventListener('offline', () => { odswiezNagrania(); odswiezStanKolejki
 
 // Pasek nagrywania (niski, na dole ekranu). Protokół nad nim można przewijać i oglądać.
 // Stany: nagrywa → pauza ⇄ nagrywa → zatrzymane (Zapisz / Usuń).
+// „Pauza” od razu wysyła nagrany fragment do zamiany na tekst i AI – protokół
+// uzupełnia się w trakcie, a serwisant mówi dalej po „Wznów”.
 let nagrywarka = null;
 const formatCzasu = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+// Wrzuca fragment do kolejki i uruchamia przetwarzanie. Zwraca false, gdy fragment za krótki.
+async function wyslijFragment(protokolId, fragment) {
+  if (!fragment || fragment.sekundy < 1 || !fragment.blob.size) return false;
+  await N.dodajDoKolejki(protokolId, fragment);
+  odswiezNagrania();
+  przetworzKolejke();
+  return true;
+}
 
 async function rozpocznijNagranie() {
   if (document.getElementById('pasekNagrania')) return; // już trwa nagrywanie
@@ -592,7 +605,10 @@ async function rozpocznijNagranie() {
     return;
   }
   const n = nagrywarka;
-  let nagranie = null; // gotowe nagranie po „Stop”, czeka na „Zapisz” albo „Usuń”
+  let ostatni = null; // ostatni fragment po „Stop”, czeka na „Zapisz” albo „Usuń”
+  let zatrzymane = false;
+  let wyslane = 0; // ile fragmentów poszło już przy pauzach
+  let zajety = false; // trwa pauza/stop – nie przyjmuj kolejnych kliknięć
   const pasek = document.createElement('div');
   pasek.id = 'pasekNagrania';
   pasek.className = 'pasek-nagrania';
@@ -601,26 +617,29 @@ async function rozpocznijNagranie() {
   document.body.appendChild(pasek);
   document.body.classList.add('nagrywa');
 
-  const czas = () => formatCzasu(nagranie ? nagranie.sekundy : n.sekundy());
   const rysuj = () => {
-    const stan = nagranie ? 'zatrzymane' : n.wPauzie() ? 'pauza' : 'nagrywa';
+    const stan = zatrzymane ? 'zatrzymane' : n.wPauzie() ? 'pauza' : 'nagrywa';
     pasek.dataset.stan = stan;
-    const opis = { nagrywa: 'Nagrywanie', pauza: 'Pauza', zatrzymane: 'Nagranie gotowe' }[stan];
+    const opis = {
+      nagrywa: 'Nagrywanie',
+      pauza: navigator.onLine ? 'Pauza · wysłano' : 'Pauza · w kolejce',
+      zatrzymane: wyslane ? 'Ostatni fragment' : 'Nagranie gotowe',
+    }[stan];
     const przyciski = stan === 'zatrzymane'
       ? `<button class="pn-przycisk pn-usun" data-n="usun">🗑 Usuń</button>
          <button class="pn-przycisk pn-zapisz" data-n="zapisz">✓ Zapisz</button>`
-      : `${n.mozePauzowac() ? (stan === 'pauza'
+      : `${stan === 'pauza'
           ? '<button class="pn-przycisk" data-n="wznow">▶ Wznów</button>'
-          : '<button class="pn-przycisk" data-n="pauza">⏸ Pauza</button>') : ''}
+          : '<button class="pn-przycisk" data-n="pauza">⏸ Pauza</button>'}
          <button class="pn-przycisk pn-stop" data-n="stop">⏹ Stop</button>`;
     pasek.innerHTML = `<div class="pn-info"><span class="pn-kropka"></span>
-        <div><div class="pn-czas">${czas()}</div><div class="pn-opis">${opis}</div></div></div>
+        <div><div class="pn-czas">${formatCzasu(n.sekundy())}</div><div class="pn-opis">${opis}</div></div></div>
       <div class="pn-przyciski">${przyciski}</div>`;
   };
   rysuj();
   const licznik = setInterval(() => {
     const el = pasek.querySelector('.pn-czas');
-    if (el) el.textContent = czas();
+    if (el) el.textContent = formatCzasu(n.sekundy());
   }, 250);
   const zamknij = () => {
     clearInterval(licznik);
@@ -631,27 +650,38 @@ async function rozpocznijNagranie() {
 
   pasek.addEventListener('click', async (e) => {
     const co = e.target.closest('[data-n]');
-    if (!co || co.disabled) return;
+    if (!co || zajety) return;
     const akcja = co.dataset.n;
-    if (akcja === 'pauza') { n.pauza(); return rysuj(); }
     if (akcja === 'wznow') { n.wznow(); return rysuj(); }
-    if (akcja === 'stop') {
+    if (akcja === 'pauza' || akcja === 'stop') {
+      zajety = true;
       pasek.querySelectorAll('button').forEach((b) => { b.disabled = true; });
-      nagranie = await n.stop();
-      return rysuj();
+      try {
+        if (akcja === 'pauza') {
+          if (await wyslijFragment(protokolId, await n.pauza())) wyslane += 1;
+          return rysuj();
+        }
+        const wPauzie = n.wPauzie();
+        ostatni = await n.stop();
+        if (wPauzie || !ostatni) { // wszystko już wysłane przy pauzach
+          zamknij();
+          return pokazKomunikat(wyslane ? 'Nagranie zakończone' : 'Nagranie za krótkie');
+        }
+        zatrzymane = true;
+        return rysuj();
+      } finally { zajety = false; }
     }
     if (akcja === 'usun') {
-      if (!confirm('Usunąć to nagranie bez zapisywania?')) return;
+      if (!confirm(wyslane
+        ? 'Usunąć ostatni fragment (od ostatniej pauzy) bez zapisywania? Wcześniejsze fragmenty zostały już wysłane.'
+        : 'Usunąć to nagranie bez zapisywania?')) return;
       zamknij();
-      return pokazKomunikat('Nagranie usunięte');
+      return pokazKomunikat(wyslane ? 'Ostatni fragment usunięty' : 'Nagranie usunięte');
     }
     if (akcja === 'zapisz') {
       zamknij();
-      if (nagranie.sekundy < 1 || !nagranie.blob.size) return pokazKomunikat('Nagranie za krótkie');
-      await N.dodajDoKolejki(protokolId, nagranie);
+      if (!await wyslijFragment(protokolId, ostatni)) return pokazKomunikat('Nagranie za krótkie');
       pokazKomunikat(navigator.onLine ? 'Nagranie zapisane – zamieniam na tekst…' : 'Nagranie zapisane w telefonie – wyśle się po powrocie internetu');
-      odswiezNagrania();
-      przetworzKolejke();
     }
   });
 }

@@ -3,7 +3,8 @@
   "wersja": "NOWA",
   "zmiany": [
    "Nagrywanie głosu w małym pasku na dole ekranu zamiast na cały ekran – w trakcie nagrania możesz przewijać i oglądać protokół.",
-   "Nowe przyciski nagrania: ⏸ Pauza, ▶ Wznów i ⏹ Stop. Po zatrzymaniu wybierasz ✓ Zapisz albo 🗑 Usuń (bez zapisywania)."
+   "⏸ Pauza od razu wysyła to, co powiedziałeś, do AI – po kilku sekundach widzisz zaznaczenia w protokole. ▶ Wznów nagrywa dalej.",
+   "⏹ Stop kończy nagranie. Potem wybierasz ✓ Zapisz albo 🗑 Usuń (usuwa tylko część od ostatniej pauzy)."
   ]
  },
  {

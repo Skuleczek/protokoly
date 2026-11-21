@@ -33,12 +33,12 @@
 
 ## 3. Struktura projektu
 - `index.html`: jedna strona, manifest, ikony, `js/aplikacja.js`.
-- `js/aplikacja.js`: **wszystkie ekrany** (routing po `location.hash`: `#/`, `#/grupa/ID`, `#/przeglad/ID`, `#/protokol/ID`, `#/pdf/przeglad|grupa/ID`, `#/zdjecia`, `#/ustawienia`, `#/slownik`, `#/instalacja`, `#/administrator`, `#/uzytkownicy`, `#/klucze`, `#/koszty`, `#/kopia`, `#/testai`, `#/zmiany`). Przyciski mają `data-akcja="…"`, a obsługę zapewnia obiekt `akcje` (delegacja kliknięć). Tekst użytkownika zawsze przez `h()` (escapowanie).
+- `js/aplikacja.js`: **wszystkie ekrany** (pasek nagrywania `#pasekNagrania` na dole zamiast okna na cały ekran: Pauza/Wznów/Stop, po Stop Zapisz/Usuń ostatniego fragmentu; routing po `location.hash`: `#/`, `#/grupa/ID`, `#/przeglad/ID`, `#/protokol/ID`, `#/pdf/przeglad|grupa/ID`, `#/zdjecia`, `#/ustawienia`, `#/slownik`, `#/instalacja`, `#/administrator`, `#/uzytkownicy`, `#/klucze`, `#/koszty`, `#/kopia`, `#/testai`, `#/zmiany`). Przyciski mają `data-akcja="…"`, a obsługę zapewnia obiekt `akcje` (delegacja kliknięć). Tekst użytkownika zawsze przez `h()` (escapowanie).
 - `js/protokol.js`: logika protokołu (szablon, „Sekcja OK”, opcjonalne, postęp/braki, `nowyProtokol`).
 - `js/baza.js`: dostęp do danych. Kolekcje `grupy/przeglady/protokoly` idą do Firestore (zapis bez czekania na serwer, odczyt z limitem 4 s i powrotem do pamięci podręcznej). `ustawienia/nagrania` są lokalnie w IndexedDB `protokoly`, a gdy IndexedDB nie działa, w pamięci.
 - `js/chmura.js`: init Firebase, sesja, logowanie kodem, pierwsze konto administratora, operacje administratora (konta, kody, blokada). Ma tryb awaryjny `memoryLocalCache`, gdy IndexedDB nie działa (np. Safari prywatne).
 - `js/konfiguracja.js`: konfiguracja Firebase (jawna z założenia), ważność kodu (48 h), cennik `CENY` do panelu kosztów.
-- `js/nagrania.js`: nagrywanie (MediaRecorder, wake lock), kolejka offline, transkrypcja, klucze (`sekrety/klucze`), tryb testowy, słownik, zapis zużycia.
+- `js/nagrania.js`: nagrywanie (MediaRecorder, wake lock; nagranie w fragmentach – „Pauza” zamyka fragment, który od razu idzie do kolejki/AI, „Wznów” zaczyna nowy na tym samym mikrofonie), kolejka offline, transkrypcja, klucze (`sekrety/klucze`), tryb testowy, słownik, zapis zużycia.
 - `js/ai.js`: instrukcja systemowa z zasadami, schemat JSON z szablonu, wywołanie Claude, `zastosujWynik`, `cofnijAI` (cofa tylko pola zmienione przez AI), sprawdzanie klucza.
 - `js/testy-ai.js`: 15 scenariuszy „Test jakości AI”, 45 sprawdzeń (ostatni wynik u użytkownika: 38/38 przy starszej wersji; po zmianie zasad łożysk 21.11.2026 czekamy na nowy wynik).
 - `js/pdf.js`: PDF protokołu. Wymiary zmierzone z oryginału (stała `K`). **Nie pokazuje oznaczeń AI ani flag.**
