@@ -153,9 +153,16 @@ export function kopiujBudowe(p, zrodlo) {
 }
 
 // Ile pól jeszcze brakuje (do plakietki na liście central).
-// Punkt wyboru jest wypełniony, gdy ma stan, jest opcjonalny
-// albo (łożyska 1.5, 2.5) zaznaczono samo "do wymiany".
-export function punktWypelniony(pkt, w) {
+// Przepustnice niewymagane, gdy brak wentylatora: 3.1 (zewnętrzna) przy braku sekcji 1,
+// 3.2 (wyrzutu) przy braku sekcji 2.
+const ZALEZNE_OD_SEKCJI = { '3.1': '1', '3.2': '2' };
+
+// Punkt wyboru jest wypełniony, gdy ma stan, jest opcjonalny,
+// (łożyska 1.5, 2.5) zaznaczono samo "do wymiany"
+// albo (przepustnice 3.1, 3.2) odpowiadający wentylator ma "brak".
+export function punktWypelniony(pkt, w, p) {
+  const zalezna = ZALEZNE_OD_SEKCJI[pkt.nr];
+  if (zalezna && p && p.sekcje[zalezna] === 'brak') return true;
   return !!(w.stan || pkt.opcjonalny || (pkt.polaTekstowe && w.dod === true));
 }
 
@@ -168,7 +175,7 @@ export function postep(p) {
     for (const pkt of s.punkty) {
       const w = p.punkty[pkt.nr] || {};
       if (pkt.typ === 'wybor') {
-        if (!punktWypelniony(pkt, w)) brakuje++;
+        if (!punktWypelniony(pkt, w, p)) brakuje++;
       } else {
         for (const pole of pkt.pola) {
           if (!pole.opcjonalne && !String(w[pole.id] ?? '').trim()) brakuje++;

@@ -298,7 +298,7 @@ function htmlPunkt(p, pkt) {
       <input type="text" value="${h(w[pole.id] ?? '')}" data-pole="${pole.id}" data-nr="${pkt.nr}">
       ${htmlFlagi(p, `${pkt.nr}.${pole.id}`)}
     </label>`).join('');
-  const pusty = !P.punktWypelniony(pkt, w);
+  const pusty = !P.punktWypelniony(pkt, w, p);
   const ai = zmienioneAI(p).has(pkt.nr) || zmienioneAI(p).has(`${pkt.nr}.dod`);
   return `<div class="punkt ${pusty ? 'pusty' : ''} ${ai ? 'ai' : ''}" data-punkt="${pkt.nr}">
     <div class="punkt-nazwa"><b>${pkt.nr}.</b> ${h(pkt.nazwa)}${pkt.opcjonalny ? ' <span class="opcjonalny">(opcjonalnie)</span>' : ''}${ai ? znakAI : ''}</div>
@@ -1889,6 +1889,8 @@ const akcje = {
   sekcja(el) {
     P.ustawSekcje(biezacy, el.dataset.nr, el.dataset.wartosc);
     odswiezSekcje(el.dataset.nr);
+    // Brak wentylatora (1, 2) zmienia wymagane przepustnice w sekcji 3.
+    if (el.dataset.nr === '1' || el.dataset.nr === '2') odswiezSekcje('3');
     zapiszZaChwile();
   },
   punkt(el) {
