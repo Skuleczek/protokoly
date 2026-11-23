@@ -1,8 +1,9 @@
 [
  {
-  "wersja": "2026.11.23-1143",
+  "wersja": "2026.11.23-1145",
   "zmiany": [
-   "Prądy silników (1.6 i 2.6): przy wpisywaniu pokazuje się zwykła klawiatura, więc można wpisać też litery."
+   "Prądy silników (1.6 i 2.6): przy wpisywaniu pokazuje się zwykła klawiatura, więc można wpisać też litery.",
+   "Filtry (sekcje 4, 5, 6): „✓ Sekcja OK” nie zaznacza już „Wymiana filtrów” – wybierasz „tak” lub „nie” sam."
   ]
  },
  {

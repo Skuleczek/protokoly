@@ -81,6 +81,9 @@ function usunFlagi(p, prefiks) {
   }
 }
 
+// "Wymiana filtrów" (4.3, 5.3, 6.3) – "Sekcja OK" jej nie zaznacza, serwisant wybiera sam.
+const BEZ_SEKCJI_OK = ['4.3', '5.3', '6.3'];
+
 // "✓ Sekcja OK": jest + wszystkie odpowiedzi pozytywne (pola liczbowe bez zmian).
 export function sekcjaOK(p, nr) {
   const s = znajdzSekcje(nr);
@@ -88,6 +91,7 @@ export function sekcjaOK(p, nr) {
   usunFlagi(p, nr);
   for (const pkt of s.punkty) {
     if (pkt.typ !== 'wybor' || pkt.opcjonalny) continue; // punkt opcjonalny (np. 1.4) – bez zmian
+    if (BEZ_SEKCJI_OK.includes(pkt.nr)) continue; // wymiana filtrów – bez zmian
     const w = wpisPunktu(p, pkt.nr);
     w.stan = 'poz';
     if (pkt.dodatkowe && pkt.dodatkowe.typ === 'zaznacz') w.dod = false;
