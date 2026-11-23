@@ -271,12 +271,14 @@ function htmlPunkt(p, pkt) {
   const w = p.punkty[pkt.nr] || {};
   const flagaPunktu = htmlFlagi(p, pkt.nr);
   if (pkt.typ === 'liczby') {
+    // 1.6 i 2.6: zwykła klawiatura (można wpisać też litery), pozostałe – numeryczna.
+    const KLAWIATURA_ZWYKLA = ['1.6', '2.6'];
     const ai = pkt.pola.some((pl) => zmienioneAI(p).has(`${pkt.nr}.${pl.id}`));
     return `<div class="punkt ${ai ? 'ai' : ''}">
       <div class="punkt-nazwa"><b>${pkt.nr}.</b> ${h(pkt.nazwa)}${ai ? znakAI : ''}</div>
       <div class="liczby">
         ${pkt.pola.map((pole) => `<label class="pole maly ${!pole.opcjonalne && !String(w[pole.id] ?? '').trim() ? 'puste' : ''}">${h(pole.etykieta)}${pole.opcjonalne ? ' <span class="opcjonalny">(opcjonalnie)</span>' : ''}
-          <input type="text" inputmode="decimal" value="${h(w[pole.id] ?? '')}" data-pole="${pole.id}" data-nr="${pkt.nr}" ${pole.opcjonalne ? 'data-opcjonalne="1"' : ''}>
+          <input type="text" ${KLAWIATURA_ZWYKLA.includes(pkt.nr) ? '' : 'inputmode="decimal"'} value="${h(w[pole.id] ?? '')}" data-pole="${pole.id}" data-nr="${pkt.nr}" ${pole.opcjonalne ? 'data-opcjonalne="1"' : ''}>
           ${htmlFlagi(p, `${pkt.nr}.${pole.id}`)}
         </label>`).join('')}
       </div>${flagaPunktu}

@@ -1,5 +1,11 @@
 [
  {
+  "wersja": "2026.11.23-1143",
+  "zmiany": [
+   "Prądy silników (1.6 i 2.6): przy wpisywaniu pokazuje się zwykła klawiatura, więc można wpisać też litery."
+  ]
+ },
+ {
   "wersja": "2026.11.21-2013",
   "zmiany": [
    "Nagrywanie głosu w małym pasku na dole ekranu zamiast na cały ekran – w trakcie nagrania możesz przewijać i oglądać protokół.",
