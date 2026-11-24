@@ -1,5 +1,12 @@
 [
  {
+  "wersja": "2026.11.24-2101",
+  "zmiany": [
+   "Mój podpis: można wgrać zdjęcie podpisu (np. z kartki). Aplikacja sama usuwa tło i przycina podpis, a suwakiem „Czułość” można poprawić wynik. Gotowy PNG bez tła też działa.",
+   "Podpis w PDF jest trochę mniejszy."
+  ]
+ },
+ {
   "wersja": "2026.11.24-1831",
   "zmiany": [
    "Nagrania głosowe: „filtry OK” nie zaznacza już „Wymiana filtrów”. Wymiana zaznacza się tylko, gdy powiesz o niej wprost, np. „filtry wymienione” albo „bez wymiany filtrów”."

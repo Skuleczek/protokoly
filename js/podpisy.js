@@ -228,3 +228,165 @@ export function otworzOknoPodpisu() {
     });
   });
 }
+
+// ------------------------------------------------------------
+// Podpis ze zdjęcia (np. podpis na białej kartce).
+// • zwykłe zdjęcie (JPG) – aplikacja sama usuwa tło: tło liczone osobno w każdej
+//   części zdjęcia (cień, nierówne światło), ciemniejsze od tła = tusz;
+// • PNG z przezroczystym tłem – używany bez zmian (tylko przycięcie i zmniejszenie).
+// Wynik: czarny podpis, przezroczyste tło, przycięty.
+// ------------------------------------------------------------
+async function wczytajObraz(plik) {
+  let zrodlo;
+  try { zrodlo = await createImageBitmap(plik, { imageOrientation: 'from-image' }); } catch (e) {
+    zrodlo = new Image();
+    const adres = URL.createObjectURL(plik);
+    zrodlo.src = adres;
+    await zrodlo.decode();
+    URL.revokeObjectURL(adres);
+  }
+  const w0 = zrodlo.width || zrodlo.naturalWidth, h0 = zrodlo.height || zrodlo.naturalHeight;
+  const skala = Math.min(1, 1400 / Math.max(w0, h0));
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(w0 * skala)); c.height = Math.max(1, Math.round(h0 * skala));
+  c.getContext('2d').drawImage(zrodlo, 0, 0, c.width, c.height);
+  return c;
+}
+
+// Czy obraz ma już przezroczyste tło (gotowy PNG)?
+function maPrzezroczystosc(dane) {
+  let ile = 0;
+  for (let i = 3; i < dane.data.length; i += 4) if (dane.data[i] < 200) ile++;
+  return ile > dane.width * dane.height * 0.02;
+}
+
+// Mapa przezroczystości (0..1) dla zdjęcia; czulosc 0..1 (więcej = łapie jaśniejsze kreski).
+function tuszZeZdjecia(canvas, czulosc) {
+  const w = canvas.width, h = canvas.height;
+  const dane = canvas.getContext('2d').getImageData(0, 0, w, h).data;
+  // Tło: zdjęcie mocno zmniejszone i powiększone z powrotem (średnia okolicy, kreski giną).
+  const m = document.createElement('canvas');
+  m.width = Math.max(2, Math.round(w / 24)); m.height = Math.max(2, Math.round(h / 24));
+  m.getContext('2d').drawImage(canvas, 0, 0, m.width, m.height);
+  const t = document.createElement('canvas');
+  t.width = w; t.height = h;
+  const tc = t.getContext('2d');
+  tc.imageSmoothingEnabled = true;
+  tc.drawImage(m, 0, 0, w, h);
+  const tlo = tc.getImageData(0, 0, w, h).data;
+  const prog = 0.34 - czulosc * 0.26; // 0,34 … 0,08
+  const alfa = new Float32Array(w * h);
+  for (let i = 0, j = 0; j < alfa.length; i += 4, j++) {
+    const jas = 0.299 * dane[i] + 0.587 * dane[i + 1] + 0.114 * dane[i + 2];
+    const jasT = Math.max(40, 0.299 * tlo[i] + 0.587 * tlo[i + 1] + 0.114 * tlo[i + 2]);
+    const tusz = 1 - Math.min(1, jas / jasT);
+    alfa[j] = Math.min(1, Math.max(0, (tusz - prog) / 0.12));
+  }
+  return alfa;
+}
+
+function alfaZPng(canvas) {
+  const d = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+  const alfa = new Float32Array(canvas.width * canvas.height);
+  for (let i = 3, j = 0; j < alfa.length; i += 4, j++) {
+    // Białe/jasne piksele w PNG traktujemy jak tło (gdyby ktoś zostawił białe obramowanie).
+    const jas = 0.299 * d[i - 3] + 0.587 * d[i - 2] + 0.114 * d[i - 1];
+    alfa[j] = (d[i] / 255) * Math.min(1, Math.max(0, (245 - jas) / 60));
+  }
+  return alfa;
+}
+
+// Przycina do samego podpisu (pomija pojedyncze kropki) i zapisuje jako PNG.
+function alfaDoPng(alfa, w, h) {
+  const wiersze = new Uint32Array(h), kolumny = new Uint32Array(w);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (alfa[y * w + x] > 0.5) { wiersze[y]++; kolumny[x]++; }
+  const minW = Math.max(2, Math.round(w * 0.003)), minK = Math.max(2, Math.round(h * 0.003));
+  let y0 = 0, y1 = h - 1, x0 = 0, x1 = w - 1;
+  while (y0 < h && wiersze[y0] < minW) y0++;
+  while (y1 > y0 && wiersze[y1] < minW) y1--;
+  while (x0 < w && kolumny[x0] < minK) x0++;
+  while (x1 > x0 && kolumny[x1] < minK) x1--;
+  if (y0 >= h || x0 >= w) return null; // nic nie znaleziono
+  const m = 6;
+  x0 = Math.max(0, x0 - m); y0 = Math.max(0, y0 - m); x1 = Math.min(w - 1, x1 + m); y1 = Math.min(h - 1, y1 + m);
+  const sw = x1 - x0 + 1, sh = y1 - y0 + 1;
+  const pelny = document.createElement('canvas');
+  pelny.width = sw; pelny.height = sh;
+  const pc = pelny.getContext('2d');
+  const obraz = pc.createImageData(sw, sh);
+  for (let y = 0; y < sh; y++) {
+    for (let x = 0; x < sw; x++) {
+      const a = alfa[(y + y0) * w + (x + x0)];
+      obraz.data[(y * sw + x) * 4 + 3] = Math.round(a * 255); // kolor 0,0,0 = czarny
+    }
+  }
+  pc.putImageData(obraz, 0, 0);
+  for (const maks of [700, 500, 350, 250]) {
+    const skala = Math.min(1, maks / Math.max(sw, sh));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(sw * skala)); c.height = Math.max(1, Math.round(sh * skala));
+    c.getContext('2d').drawImage(pelny, 0, 0, c.width, c.height);
+    const url = c.toDataURL('image/png');
+    if (url.length <= MAKS_ZNAKOW) return url;
+  }
+  return null;
+}
+
+// Okno z podglądem podpisu ze zdjęcia. Zwraca PNG (dataURL) albo null (anulowano).
+export async function otworzOknoZdjeciaPodpisu(plik) {
+  const canvas = await wczytajObraz(plik);
+  const dane = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+  const png = maPrzezroczystosc(dane);
+  return new Promise((gotowe) => {
+    let czulosc = 0.6;
+    let wynik = null;
+    const okno = document.createElement('div');
+    okno.className = 'podpis-okno podpis-okno-zdjecie';
+    okno.innerHTML = `
+      <div class="podpis-okno-gora">${png ? 'Podpis z pliku PNG (tło przezroczyste)' : 'Podpis ze zdjęcia – tło usunięte'}</div>
+      <div class="podpis-okno-pole podpis-wynik"><img alt="Podgląd podpisu"><p class="pusto" hidden>Nie znaleziono podpisu – zwiększ czułość albo zrób wyraźniejsze zdjęcie.</p></div>
+      ${png ? '' : `<label class="podpis-czulosc">Czułość: <span>jaśniej</span>
+        <input type="range" min="0" max="100" value="60"><span>ciemniej</span></label>
+        <p class="podpis-wskazowka">Zostały plamy lub cień? Przesuń w lewo. Podpis przerywany lub blady? Przesuń w prawo.</p>`}
+      <div class="podpis-okno-przyciski dwa">
+        <button class="sredni" data-p="anuluj">✕ Anuluj</button>
+        <button class="sredni glowny" data-p="gotowe">✓ Gotowe</button>
+      </div>`;
+    const html = document.documentElement;
+    const przewiniecie = window.scrollY;
+    html.classList.add('podpis-blokada');
+    document.body.style.top = `-${przewiniecie}px`;
+    document.body.appendChild(okno);
+    const img = okno.querySelector('img'), brak = okno.querySelector('.pusto');
+    const przelicz = () => {
+      const alfa = png ? alfaZPng(canvas) : tuszZeZdjecia(canvas, czulosc);
+      wynik = alfaDoPng(alfa, canvas.width, canvas.height);
+      img.hidden = !wynik; brak.hidden = !!wynik;
+      if (wynik) img.src = wynik;
+    };
+    przelicz();
+    let czekaj = null;
+    const suwak = okno.querySelector('input[type=range]');
+    if (suwak) suwak.addEventListener('input', () => {
+      czulosc = suwak.value / 100;
+      clearTimeout(czekaj);
+      czekaj = setTimeout(przelicz, 120);
+    });
+    const zamknij = (w) => {
+      okno.remove();
+      html.classList.remove('podpis-blokada');
+      document.body.style.top = '';
+      window.scrollTo(0, przewiniecie);
+      gotowe(w);
+    };
+    okno.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-p]');
+      if (!b) return;
+      if (b.dataset.p === 'anuluj') zamknij(null);
+      else if (b.dataset.p === 'gotowe') {
+        if (!wynik) { alert('Nie znaleziono podpisu na zdjęciu.'); return; }
+        zamknij(wynik);
+      }
+    });
+  });
+}

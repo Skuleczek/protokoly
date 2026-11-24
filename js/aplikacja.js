@@ -871,9 +871,19 @@ async function ekranPodpis() {
         <button class="sredni" data-akcja="podpisUsun">🗑 Usuń podpis</button>
       </section>` : ''}
       ${moj ? '' : '<p class="pusto">Nie masz jeszcze podpisu.</p>'}
-      <p class="info">Po dotknięciu przycisku otworzy się białe pole na cały ekran. Podpisz się palcem i dotknij „✓ Gotowe”. Najwygodniej trzymać telefon poziomo.</p>
-    </main>
-    <footer class="dolny"><button class="duzy glowny" data-akcja="podpisOtworz">✍ ${moj ? 'Zmień podpis' : 'Podpisz się'}</button></footer>`;
+      <section class="karta">
+        <h3>✍ Podpis palcem</h3>
+        <p class="info">Otworzy się białe pole na cały ekran. Podpisz się palcem i dotknij „✓ Gotowe”. Najwygodniej trzymać telefon poziomo.</p>
+        <button class="duzy glowny" data-akcja="podpisOtworz">✍ ${moj ? 'Zmień podpis – palcem' : 'Podpisz się palcem'}</button>
+      </section>
+      <section class="karta">
+        <h3>📷 Podpis ze zdjęcia</h3>
+        <p class="info">Podpisz się długopisem na białej kartce i zrób zdjęcie z bliska, w dobrym świetle. Aplikacja sama usunie tło i przytnie podpis. Możesz też wgrać gotowy plik PNG z przezroczystym tłem.</p>
+        <label class="duzy przycisk-link wybor-pliku">📷 Wgraj zdjęcie podpisu
+          <input type="file" id="zdjeciePodpisu" accept="image/*">
+        </label>
+      </section>
+    </main>`;
 }
 
 // Ustawienie „gdzie zapisywać PDF” (tylko na tym urządzeniu).
@@ -2070,6 +2080,19 @@ ekran.addEventListener('change', async (e) => {
     const folder = await ZAPIS.folder();
     document.getElementById('kartaZapisu').innerHTML = htmlZapisu(folder);
     if (el.value === 'folder' && !folder) pokazKomunikat('Teraz dotknij „📂 Wybierz folder”');
+    return;
+  }
+  if (el.id === 'zdjeciePodpisu' && el.files.length) {
+    const plik = el.files[0];
+    el.value = '';
+    let obraz;
+    try { obraz = await PODPIS.otworzOknoZdjeciaPodpisu(plik); } catch (err) {
+      console.error(err); alert('Nie udało się odczytać zdjęcia. Spróbuj innego pliku (JPG lub PNG).'); return;
+    }
+    if (!obraz) return;
+    await PODPIS.zapiszMojPodpis(obraz);
+    pokazKomunikat(navigator.onLine ? 'Zapisano podpis ✓' : 'Zapisano podpis ✓ (wyśle się, gdy będzie internet)');
+    await ekranPodpis();
     return;
   }
   if (el.id === 'zdjeciaPrzegladu' && el.files.length) {
