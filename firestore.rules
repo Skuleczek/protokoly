@@ -117,6 +117,21 @@ service cloud.firestore {
       allow delete: if czlonek();
     }
 
+    // ---------- podpisy pracowników (id dokumentu = id konta) ----------
+    // Czyta każdy członek zespołu (podpis autora trafia do PDF protokołu).
+    // Zapisać i zmienić można tylko WŁASNY podpis; usunąć – własny albo administrator.
+    match /podpisy/{kontoId} {
+      allow read: if czlonek();
+      allow create, update: if czlonek() && kontoId == mojeKontoId()
+        && request.resource.data.keys().hasOnly(['id', 'konto', 'imie', 'obraz', 'zmieniono'])
+        && request.resource.data.id == kontoId
+        && request.resource.data.konto == kontoId
+        && request.resource.data.obraz is string
+        && request.resource.data.obraz.size() < 60000
+        && request.resource.data.obraz.matches('data:image/png;base64,.*');
+      allow delete: if czlonek() && (kontoId == mojeKontoId() || admin());
+    }
+
     // ---------- klucze API (OpenAI, Anthropic) – opcja A ----------
     // Czytać mogą tylko zalogowani członkowie zespołu (aplikacja ich potrzebuje),
     // zmieniać – tylko administrator. Obcy bez kodu nie odczyta ich nigdy.

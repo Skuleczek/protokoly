@@ -1,5 +1,11 @@
 [
  {
+  "wersja": "2026.11.24-1808",
+  "zmiany": [
+   "Podpis w PDF: każdy może dodać swój podpis (Ustawienia → ✍ Mój podpis, podpis palcem). Podpis autora protokołu wstawia się sam do PDF – po prawej pod tabelą. Jeśli autor nie ma podpisu, aplikacja o tym przypomni."
+  ]
+ },
+ {
   "wersja": "2026.11.23-1233",
   "zmiany": [
    "Przepustnice: gdy wentylator nawiewny ma „brak”, przepustnica powietrza zewnętrznego (3.1) nie jest wymagana. Gdy wentylator wywiewny ma „brak” – nie jest wymagana przepustnica wyrzutowa (3.2). Nadal można je zaznaczyć."

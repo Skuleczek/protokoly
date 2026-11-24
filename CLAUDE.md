@@ -44,6 +44,7 @@
 - `js/pdf.js`: PDF protokołu. Wymiary zmierzone z oryginału (stała `K`). **Nie pokazuje oznaczeń AI ani flag.**
 - `js/zdjecia.js`, `js/skaner.js`, `js/edytor-zdjecia.js`: Zdjęcia → PDF i skaner. Edytor `edytujZdjecia(lista, start)` obsługuje wszystkie zdjęcia (strzałki ◀/▶, „Zastosuj filtr dla wszystkich”, Anuluj odrzuca całą edycję). Filtr jest osobny dla każdego zdjęcia, a chipy na ekranie głównym ustawiają filtr dla nowych zdjęć. „👁 Podgląd” pokazuje strony A4 (`ukladStrony` wspólny z PDF) (wykrywanie kartki, homografia, filtry `oryginal|kontrast|szarosc|dokument|czarnobialy`, obrót).
 - `js/zdjecia-przegladu.js`: zdjęcia dołączone do przeglądu (dodawanie, lista, usuwanie, PDF bez filtrów przez `jpgDoPdf`).
+- `js/podpisy.js`: podpisy pracowników – pole do podpisu palcem (`polePodpisu`, kreski w 0..1, przerysowanie po obrocie, eksport PNG przycięty, ≤ 55 000 znaków), `wczytajPodpisy`, `zapiszMojPodpis`, `usunMojPodpis`. Ekran `#/podpis` (Ustawienia → ✍ Mój podpis), baner na ekranie głównym, gdy brak własnego podpisu. Do PDF trafia **aktualny podpis AUTORA** protokołu (`generujPdf` → `utworzPdf(lista z polem podpis)`), w polu `K.podpis` (x 410–538, od dolnej ramki tabeli +14, wys. 64), tylko na stronie 1. Brak podpisu autora → ostrzeżenie w oknie „PDF gotowy”.
 - `js/zapis.js`: miejsce zapisu plików (`pobrane|pytaj|folder`, File System Access; uchwyt folderu w IndexedDB `ustawienia/folderPdf`; na iPhonie tylko „pobrane”).
 - `dane/zmiany.json`: lista zmian (Ustawienia → Co nowego, pasek „Jest nowa wersja”). **Przy każdej publikacji dopisz na górze wpis `"wersja": "NOWA"`** z prostym opisem nowości; `publikuj.sh` wpisze numer wersji. Pasek czyta listę z pamięci (cache) nowej wersji.
 - `js/koszty.js`: podsumowanie zużycia, szacowane saldo i data końca środków.
@@ -66,9 +67,10 @@
   - `wspolne/slownik`: terminy; czyta i pisze każdy członek, podpisany polem `zmienil`,
   - `admin/budzet`: saldo, kurs; tylko administrator,
   - `zdjecia/{id}` {przegladId, grupaId, mini (dataURL ≤ 60 KB), szer, wys, rozmiar, autor, autorImie, utworzono} i `zdjeciaDane/{id}` {dane: **Bytes** (binarny JPEG ≤ 900 KB, max 1600 px, jakość 0,8); starsze zdjęcia mają `dane` jako tekst dataURL – aplikacja czyta oba formaty, reguły przyjmują oba}; tworzy członek jako autor, bez edycji, usuwa każdy członek zespołu. Nie ma ich w kopii zapasowej (za duże). Limit Firestore 1 GB – licznik w Koszty → „Policz miejsce”,
+  - `podpisy/{kontoId}` {id, konto, imie, obraz (dataURL PNG < 60000 znaków), zmieniono}: czyta każdy członek, zapisuje tylko właściciel (administrator też nie zapisze cudzego), usuwa właściciel lub administrator. Stare pole `protokol.podpis` nieużywane,
   - `zuzycie/{id}`: rodzaj transkrypcja|ai|ai-test, tokeny/sekundy, konto, miesiac, kiedy.
 - Uprawnienia: wszyscy członkowie widzą i edytują wszystkie protokoły. Usuwać mogą autor (własne) i administrator (wszystko: grupy, przeglądy, cudze). Autora nie da się podmienić. Zablokowane konto natychmiast traci dostęp.
-- **Każda zmiana `firestore.rules` wymaga, by użytkownik wkleił plik w Firebase → Firestore Database → Rules → Publish.** Zawsze mu o tym przypomnij. Przed wysłaniem przetestuj reguły na emulatorze (ostatnio 55/55 + 24/24 dla zdjęć). `@firebase/rules-unit-testing` instaluj w osobnym folderze niż firebase-tools (konflikt wersji).
+- **Każda zmiana `firestore.rules` wymaga, by użytkownik wkleił plik w Firebase → Firestore Database → Rules → Publish.** Zawsze mu o tym przypomnij. Przed wysłaniem przetestuj reguły na emulatorze (ostatnio 55/55 + 24/24 dla zdjęć + 20/20 dla podpisów). `@firebase/rules-unit-testing` instaluj w osobnym folderze niż firebase-tools (konflikt wersji).
 
 ## 5. Uruchamianie, testy, publikacja
 - Lokalnie: `python3 -m http.server 8123` w folderze repo → `http://localhost:8123/`. Dodatek `?emulator=1` (tylko na localhost) łączy z emulatorami (auth 9099, firestore 8180).
@@ -113,4 +115,4 @@
   - **logowanie kodem na iPhonie (Safari)**: poprawki wysłane, czekamy na wynik. Jeśli dalej nie działa, poproś o zrzut nowego komunikatu (pokazuje imię, kod, kod błędu) i wersję iOS,
   - testy w terenie: jakość transkrypcji i AI na prawdziwym dyktowaniu, praca bez zasięgu, skaner na prawdziwych zdjęciach,
   - użytkownik musi mieć wklejoną **aktualną** wersję `firestore.rules` w Firebase.
-- ⏭ Dalej: poprawki instrukcji AI po testach w terenie (każdy błędny przypadek dopisać też do `js/testy-ai.js`), ewentualne dopracowanie wykrywania kartki, **podpis palcem** (w PDF jest miejsce, pole `protokol.podpis`), ewentualnie aktualizacja cennika `CENY`.
+- ⏭ Dalej: poprawki instrukcji AI po testach w terenie (każdy błędny przypadek dopisać też do `js/testy-ai.js`), ewentualne dopracowanie wykrywania kartki, ewentualnie aktualizacja cennika `CENY`.

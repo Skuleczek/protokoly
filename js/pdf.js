@@ -22,6 +22,9 @@ const K = {
   szerokie1: [235.3, 309.3], szerokie2: [317.7, 391.7], // pola liczbowe
   kratka: 8.3,
   pomieszczenie: 400.0,              // pomieszczenie/piętro: komórka I2 (kolumna I, jak pole „nastawa”)
+  // Podpis autora: po prawej pod tabelą (pod przerwą w dolnej ramce, jak w oryginale),
+  // obok „Termin następnego przeglądu” i tekstu o częstotliwości (ten kończy się na x ≈ 404).
+  podpis: { x: 410, szer: 128, od: 14, wys: 64 }, // od = odstęp od dolnej ramki tabeli
 };
 const ROZMIAR = { punkt: 7, naglowek: 8, tytul: 11.5, firma: 7.7, strona: 9.6, stopka: 9 };
 
@@ -113,7 +116,7 @@ function zawin(tekst, czc, roz, szer) {
   return linie;
 }
 
-function rysujProtokol(pdf, f, p, obiekt) {
+function rysujProtokol(pdf, f, p, obiekt, podpis = null) {
   const sz = pobierzSzablon();
   let strona = pdf.addPage(A4);
   let t = rysownik(strona, f);
@@ -214,9 +217,14 @@ function rysujProtokol(pdf, f, p, obiekt) {
   let yS = dol + 2;
   const wEt = t.tekst(sz.stopka.podpis, K.nazwa, yS, { czc: f.bi, roz: 8.5, podkr: true });
   t.tekst(dataPL(p.dataKontroli), K.nazwa + wEt + 8, yS, { roz: 8.5 });
-  // Podpis odręczny – wolne miejsce pod tabelą (przerwa w dolnej ramce, jak w oryginale).
-  if (p.podpis) {
-    // Miejsce na przyszły podpis palcem (obrazek PNG w p.podpis) – rysowany nad linią.
+  // Podpis autora protokołu (obrazek PNG z przezroczystym tłem), wpasowany i wyśrodkowany w polu.
+  if (podpis) {
+    const P = K.podpis;
+    const skala = Math.min(P.szer / podpis.width, P.wys / podpis.height);
+    const w = podpis.width * skala, wys = podpis.height * skala;
+    const x = P.x + (P.szer - w) / 2;
+    const yGora = dol + P.od + (P.wys - wys) / 2;
+    strona.drawImage(podpis, { x, y: A4[1] - yGora - wys, width: w, height: wys });
   }
 
   // --- termin, informacja, uwagi
@@ -251,7 +259,7 @@ function rysujProtokol(pdf, f, p, obiekt) {
 
 /**
  * Tworzy jeden plik PDF z wielu protokołów.
- * @param {Array<{protokol, obiekt}>} lista – kolejność = kolejność w pliku
+ * @param {Array<{protokol, obiekt, podpis?}>} lista – kolejność = kolejność w pliku; podpis = dataURL PNG autora
  * @returns {Promise<Uint8Array>}
  */
 export async function utworzPdf(lista, tytul = 'Protokoły kontroli') {
@@ -260,7 +268,14 @@ export async function utworzPdf(lista, tytul = 'Protokoły kontroli') {
   pdf.registerFontkit(fontkit);
   const f = {};
   for (const k of Object.keys(bajty)) f[k] = await pdf.embedFont(bajty[k], { subset: true });
-  for (const { protokol, obiekt } of lista) rysujProtokol(pdf, f, protokol, obiekt);
+  // Podpisy (dataURL PNG) – każdy osadzony w pliku tylko raz.
+  const obrazy = new Map();
+  for (const { podpis } of lista) {
+    if (podpis && !obrazy.has(podpis)) {
+      try { obrazy.set(podpis, await pdf.embedPng(podpis)); } catch (e) { console.warn('Nie udało się wstawić podpisu', e); obrazy.set(podpis, null); }
+    }
+  }
+  for (const { protokol, obiekt, podpis } of lista) rysujProtokol(pdf, f, protokol, obiekt, podpis ? obrazy.get(podpis) : null);
   pdf.setTitle(tytul);
   pdf.setCreator('Protokoły kontroli');
   pdf.setProducer('Protokoły kontroli');

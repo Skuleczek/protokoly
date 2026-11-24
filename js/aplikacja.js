@@ -10,6 +10,7 @@
 //   #/zdjecia               – zdjęcia -> jeden plik PDF
 //   #/zmiany                – lista zmian w kolejnych wersjach (Co nowego)
 //   #/ustawienia            – tryb testowy (dla wszystkich)
+//   #/podpis                – mój podpis (wstawiany do PDF moich protokołów)
 //   #/administrator, #/klucze, #/koszty, #/slownik, #/kopia, #/testai – ekrany administratora
 //   #/instalacja            – jak dodać aplikację do ekranu głównego
 // ============================================================
@@ -23,6 +24,7 @@ import * as K from './koszty.js';
 import * as PWA from './pwa.js';
 import { WERSJA } from './wersja.js';
 import * as ZAPIS from './zapis.js';
+import * as PODPIS from './podpisy.js';
 
 const ekran = document.getElementById('app');
 
@@ -119,6 +121,7 @@ async function ekranGrupy() {
       <button class="duzy glowny" data-akcja="nowaGrupa">＋ Nowa grupa (klient)</button>
       <a class="duzy przycisk-link" href="#/zdjecia">🖼 Zdjęcia → PDF</a>
       <div id="instalacjaBaner"></div>
+      <div id="podpisBaner"></div>
       <div id="stanKolejki"></div>
       <div id="ostrzezeniaKluczy"></div>
       ${grupy.length ? '' : '<p class="pusto">Nie masz jeszcze żadnej grupy. Dodaj pierwszego klienta.</p>'}
@@ -713,6 +716,15 @@ async function ostrzezeniaKluczy() {
 // ------------------------------------------------------------
 const OSTRZEZENIE_IPHONE = 'Na iPhonie dodaj aplikację do ekranu głównego. Bez tego Safari może usuwać dane zapisane w telefonie (np. nagrania czekające na wysłanie i ustawienia).';
 
+// Przypomnienie: brak własnego podpisu (wstawiany do PDF).
+async function banerPodpisu() {
+  try { await PODPIS.wczytajPodpisy(true); } catch (e) { return; }
+  const el = document.getElementById('podpisBaner');
+  if (!el) return;
+  el.innerHTML = PODPIS.mamPodpis() ? ''
+    : '<a class="flaga przycisk-link-flaga" href="#/podpis">✍ Nie masz jeszcze podpisu – będzie wstawiany do PDF Twoich protokołów. Dotknij, aby go dodać.</a>';
+}
+
 function banerInstalacji() {
   const el = document.getElementById('instalacjaBaner');
   if (!el || PWA.zainstalowana()) { if (el) el.innerHTML = ''; return; }
@@ -830,6 +842,7 @@ async function ekranUstawienia() {
         <p class="info">Na tym urządzeniu nagrania i AI są udawane – możesz ćwiczyć bez żadnych kosztów. Do prawdziwej pracy wyłącz.</p>
         <label class="przelacznik"><input type="checkbox" id="trybTestowy" ${N.trybTestowy() ? 'checked' : ''}> Tryb testowy włączony</label>
       </section>
+      <a class="duzy przycisk-link" href="#/podpis">✍ Mój podpis</a>
       <a class="duzy przycisk-link" href="#/slownik">📖 Słownik terminów</a>
       <section class="karta" id="kartaZapisu">${htmlZapisu(await ZAPIS.folder())}</section>
       <section class="karta">
@@ -840,6 +853,34 @@ async function ekranUstawienia() {
         <a class="sredni przycisk-link" href="#/instalacja">📲 ${PWA.zainstalowana() ? 'Instalacja na innym urządzeniu' : 'Jak zainstalować na telefonie'}</a>
       </section>
     </main>`;
+}
+
+// ------------------------------------------------------------
+// EKRAN: mój podpis (rysowany palcem, wstawiany do PDF moich protokołów)
+// ------------------------------------------------------------
+let polePodpisu = null;
+async function ekranPodpis() {
+  await PODPIS.wczytajPodpisy(true);
+  const moj = PODPIS.podpisKonta(C.sesja.konto);
+  ekran.innerHTML = `
+    <header class="pasek"><a class="wstecz" href="#/ustawienia">‹</a><h1>Mój podpis</h1></header>
+    <main class="formularz">
+      <p class="info">Podpis wstawia się sam do PDF każdego Twojego protokołu (autor: 👤 ${h(C.sesja.imie)}). Wystarczy dodać go raz – można go zmienić w każdej chwili.</p>
+      ${moj ? `<section class="karta">
+        <h3>Obecny podpis</h3>
+        <div class="podpis-podglad"><img src="${h(moj.obraz)}" alt="Mój podpis"></div>
+        <button class="sredni" data-akcja="podpisUsun">🗑 Usuń podpis</button>
+      </section>` : ''}
+      <h3>${moj ? 'Nowy podpis' : 'Podpisz się palcem'}</h3>
+      <p class="info">📱 Obróć telefon poziomo – będzie więcej miejsca.</p>
+      <div class="podpis-pole"><canvas id="polePodpisu"></canvas><span class="podpis-linia"></span></div>
+      <div class="rzad">
+        <button class="sredni" data-akcja="podpisCofnij">↶ Cofnij kreskę</button>
+        <button class="sredni" data-akcja="podpisWyczysc">✕ Wyczyść</button>
+      </div>
+    </main>
+    <footer class="dolny"><button class="duzy glowny" data-akcja="podpisZapisz">💾 Zapisz podpis</button></footer>`;
+  polePodpisu = PODPIS.polePodpisu(document.getElementById('polePodpisu'));
 }
 
 // Ustawienie „gdzie zapisywać PDF” (tylko na tym urządzeniu).
@@ -1137,22 +1178,31 @@ async function generujPdf(protokoly, nazwaPliku) {
   for (const gid of new Set(protokoly.map((p) => p.grupaId))) {
     nazwyGrup[gid] = ((await baza.pobierz('grupy', gid)) || {}).nazwa || '';
   }
+  // Podpisy autorów protokołów (bez internetu – z pamięci telefonu).
+  try { await PODPIS.wczytajPodpisy(true); } catch (e) { console.warn('Podpisy niedostępne', e); }
+  const podpisy = {};
+  const bezPodpisu = new Set();
+  for (const p of protokoly) {
+    const pod = PODPIS.podpisKonta(p.autor);
+    if (pod) podpisy[p.autor] = pod.obraz; else bezPodpisu.add(p.autorImie || p.autor || '?');
+  }
   try {
     const { utworzPdf } = await import('./pdf.js');
-    const bajty = await utworzPdf(protokoly.map((p) => ({ protokol: p, obiekt: nazwyGrup[p.grupaId] })));
-    pokazGotowyPdf(new File([bajty], nazwaPliku, { type: 'application/pdf' }));
+    const bajty = await utworzPdf(protokoly.map((p) => ({ protokol: p, obiekt: nazwyGrup[p.grupaId], podpis: podpisy[p.autor] || null })));
+    const uwaga = bezPodpisu.size ? `✍ Bez podpisu (autor nie dodał jeszcze podpisu): ${[...bezPodpisu].join(', ')}` : '';
+    pokazGotowyPdf(new File([bajty], nazwaPliku, { type: 'application/pdf' }), uwaga);
   } catch (e) {
     console.error(e);
     alert('Nie udało się utworzyć PDF: ' + e.message);
   }
 }
 
-function pokazGotowyPdf(plik) { pokazGotowyPlik(plik, '✓ PDF gotowy'); }
+function pokazGotowyPdf(plik, uwaga = '') { pokazGotowyPlik(plik, '✓ PDF gotowy', uwaga); }
 // Nazwa do zapisu na dysku: bez polskich liter (część przeglądarek zamienia
 // takie nazwy na „download”). Przy „Udostępnij” zostaje pełna polska nazwa.
 const bezPolskichLiter = (s) => s.replace(/ł/g, 'l').replace(/Ł/g, 'L').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-function pokazGotowyPlik(plik, tytul) {
+function pokazGotowyPlik(plik, tytul, uwaga = '') {
   const adres = URL.createObjectURL(plik);
   const moznaUdostepnic = navigator.canShare && navigator.canShare({ files: [plik] });
   const tryb = ZAPIS.tryb();
@@ -1161,6 +1211,7 @@ function pokazGotowyPlik(plik, tytul) {
   okno.innerHTML = `<div class="okno">
     <h3>${h(tytul)}</h3>
     <p class="info">${h(plik.name)} · ${Math.max(1, Math.round(plik.size / 1024))} KB</p>
+    ${uwaga ? `<p class="flaga">${h(uwaga)}</p>` : ''}
     ${tryb === 'pobrane' ? `<a class="duzy glowny przycisk-link" href="${adres}" download="${h(bezPolskichLiter(plik.name))}" target="_blank">💾 Otwórz / zapisz</a>`
     : `<button class="duzy glowny" data-okno="zapisz">💾 ${tryb === 'pytaj' ? 'Zapisz… (wybierz miejsce)' : 'Zapisz w wybranym folderze'}</button>
       <p class="info" id="wynikZapisu"></p>
@@ -1472,6 +1523,22 @@ const akcje = {
     if (!Number.isFinite(kurs) || kurs <= 0) return;
     await K.zapiszBudzet({ kurs });
     ekranKoszty();
+  },
+  podpisCofnij() { if (polePodpisu) polePodpisu.cofnij(); },
+  podpisWyczysc() { if (polePodpisu) polePodpisu.wyczysc(); },
+  async podpisZapisz() {
+    if (!polePodpisu || polePodpisu.pusty()) return alert('Najpierw podpisz się palcem w białym polu.');
+    const obraz = polePodpisu.obraz();
+    if (!obraz) return alert('Podpis jest zbyt skomplikowany – wyczyść i podpisz się jeszcze raz, prościej.');
+    await PODPIS.zapiszMojPodpis(obraz);
+    pokazKomunikat(navigator.onLine ? 'Zapisano podpis ✓' : 'Zapisano podpis ✓ (wyśle się, gdy będzie internet)');
+    await ekranPodpis();
+  },
+  async podpisUsun() {
+    if (!confirm('Usunąć Twój podpis? PDF Twoich protokołów będą bez podpisu, dopóki nie dodasz nowego.')) return;
+    await PODPIS.usunMojPodpis();
+    pokazKomunikat('Usunięto podpis');
+    await ekranPodpis();
   },
   async zapiszSlownik() {
     const terminy = [...new Set(document.getElementById('terminy').value.split('\n').map((x) => x.trim()).filter(Boolean))];
@@ -2056,6 +2123,7 @@ async function pokaz() {
   await zapiszTeraz();
   const [rodzaj, id] = location.hash.replace(/^#\/?/, '').split('/');
   if (rodzaj !== 'protokol') biezacy = null;
+  if (polePodpisu) { polePodpisu.zakoncz(); polePodpisu = null; }
   if (rodzaj === 'grupa') await ekranGrupa(id);
   else if (rodzaj === 'przeglad') await ekranPrzeglad(id);
   else if (rodzaj === 'protokol') await ekranProtokol(id);
@@ -2071,7 +2139,8 @@ async function pokaz() {
   else if (rodzaj === 'slownik') await ekranSlownik();
   else if (rodzaj === 'kopia') await ekranKopia();
   else if (rodzaj === 'instalacja') ekranInstalacja();
-  else { await ekranGrupy(); odswiezStanKolejki(); ostrzezeniaKluczy(); banerInstalacji(); }
+  else if (rodzaj === 'podpis') await ekranPodpis();
+  else { await ekranGrupy(); odswiezStanKolejki(); ostrzezeniaKluczy(); banerInstalacji(); banerPodpisu(); }
 }
 
 window.addEventListener('hashchange', async () => { await pokaz(); window.scrollTo(0, 0); });

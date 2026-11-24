@@ -71,7 +71,7 @@ const lokalnaIDB = {
 // Zapis NIE czeka na serwer – trafia od razu do pamięci telefonu,
 // a Firebase sam wyśle go, gdy będzie internet.
 // ------------------------------------------------------------
-const WSPOLNE = ['grupy', 'przeglady', 'protokoly', 'zdjecia', 'zdjeciaDane'];
+const WSPOLNE = ['grupy', 'przeglady', 'protokoly', 'zdjecia', 'zdjeciaDane', 'podpisy'];
 let bladZapisu = (e) => console.error(e);
 export function przyBledzieZapisu(fn) { bladZapisu = fn; }
 
