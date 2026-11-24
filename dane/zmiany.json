@@ -1,5 +1,11 @@
 [
  {
+  "wersja": "2026.11.24-2114",
+  "zmiany": [
+   "Podpis w PDF jest jeszcze trochę mniejszy."
+  ]
+ },
+ {
   "wersja": "2026.11.24-2101",
   "zmiany": [
    "Mój podpis: można wgrać zdjęcie podpisu (np. z kartki). Aplikacja sama usuwa tło i przycina podpis, a suwakiem „Czułość” można poprawić wynik. Gotowy PNG bez tła też działa.",

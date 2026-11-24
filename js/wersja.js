@@ -1,2 +1,2 @@
 // Numer wersji – uzupełniany automatycznie przez narzedzia/publikuj.sh
-export const WERSJA = '2026.11.24-2101';
+export const WERSJA = '2026.11.24-2114';

@@ -24,7 +24,7 @@ const K = {
   pomieszczenie: 400.0,              // pomieszczenie/piętro: komórka I2 (kolumna I, jak pole „nastawa”)
   // Podpis autora: po prawej pod tabelą (pod przerwą w dolnej ramce, jak w oryginale),
   // obok „Termin następnego przeglądu” i tekstu o częstotliwości (ten kończy się na x ≈ 404).
-  podpis: { x: 422, szer: 104, od: 20, wys: 52 }, // od = odstęp od dolnej ramki tabeli (ok. 80% pierwszej wersji, ten sam środek)
+  podpis: { x: 432.4, szer: 83.2, od: 25.2, wys: 41.6 }, // od = odstęp od dolnej ramki tabeli (64% pierwszej wersji, ten sam środek)
 };
 const ROZMIAR = { punkt: 7, naglowek: 8, tytul: 11.5, firma: 7.7, strona: 9.6, stopka: 9 };
 
