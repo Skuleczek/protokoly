@@ -1,5 +1,11 @@
 [
  {
+  "wersja": "2026.11.24-1814",
+  "zmiany": [
+   "Mój podpis: przycisk „✍ Podpisz się” otwiera białe pole na cały ekran – strona nie przesuwa się podczas podpisywania. Na Androidzie ekran sam obraca się poziomo (jeśli telefon pozwala)."
+  ]
+ },
+ {
   "wersja": "2026.11.24-1808",
   "zmiany": [
    "Podpis w PDF: każdy może dodać swój podpis (Ustawienia → ✍ Mój podpis, podpis palcem). Podpis autora protokołu wstawia się sam do PDF – po prawej pod tabelą. Jeśli autor nie ma podpisu, aplikacja o tym przypomni."

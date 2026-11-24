@@ -100,6 +100,10 @@ export function polePodpisu(canvas) {
     rysuj();
   });
   const koniec = () => { biezaca = null; };
+  // iPhone/Safari: bez tego palec potrafi przesuwać stronę mimo touch-action.
+  const stop = (e) => e.preventDefault();
+  canvas.addEventListener('touchstart', stop, { passive: false });
+  canvas.addEventListener('touchmove', stop, { passive: false });
   canvas.addEventListener('pointerup', koniec);
   canvas.addEventListener('pointercancel', koniec);
   window.addEventListener('resize', dopasuj);
@@ -136,4 +140,68 @@ export function polePodpisu(canvas) {
       return null;
     },
   };
+}
+
+// ------------------------------------------------------------
+// Okno podpisu na cały ekran. Strona pod spodem jest zablokowana,
+// więc podczas podpisywania nic się nie przesuwa.
+// Zwraca obrazek PNG (dataURL) albo null, gdy anulowano.
+// ------------------------------------------------------------
+export function otworzOknoPodpisu() {
+  return new Promise((gotowe) => {
+    const okno = document.createElement('div');
+    okno.className = 'podpis-okno';
+    okno.innerHTML = `
+      <div class="podpis-okno-gora">Podpisz się palcem w białym polu</div>
+      <div class="podpis-okno-pole"><canvas></canvas><span class="podpis-linia"></span></div>
+      <div class="podpis-okno-przyciski">
+        <button class="sredni" data-p="anuluj">✕ Anuluj</button>
+        <button class="sredni" data-p="cofnij">↶ Cofnij</button>
+        <button class="sredni" data-p="wyczysc">🗑 Wyczyść</button>
+        <button class="sredni glowny" data-p="gotowe">✓ Gotowe</button>
+      </div>`;
+    // Blokada przewijania strony pod oknem.
+    const html = document.documentElement;
+    const przewiniecie = window.scrollY;
+    html.classList.add('podpis-blokada');
+    document.body.style.top = `-${przewiniecie}px`;
+    const blokuj = (e) => { if (!e.target.closest('.podpis-okno-przyciski')) e.preventDefault(); };
+    okno.addEventListener('touchmove', blokuj, { passive: false });
+    document.body.appendChild(okno);
+
+    // Android: pełny ekran (bez pasków przeglądarki) i obrót poziomo – jeśli telefon pozwala.
+    let pelny = false;
+    (async () => {
+      try {
+        if (okno.requestFullscreen && !document.fullscreenElement) { await okno.requestFullscreen({ navigationUI: 'hide' }); pelny = true; }
+        if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape');
+      } catch (e) { /* iPhone i część przeglądarek – zostaje zwykłe okno */ }
+    })();
+
+    const pole = polePodpisu(okno.querySelector('canvas'));
+    const zamknij = async (wynik) => {
+      pole.zakoncz();
+      try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) { /* trudno */ }
+      try { if (pelny && document.fullscreenElement) await document.exitFullscreen(); } catch (e) { /* trudno */ }
+      okno.remove();
+      html.classList.remove('podpis-blokada');
+      document.body.style.top = '';
+      window.scrollTo(0, przewiniecie);
+      gotowe(wynik);
+    };
+    okno.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-p]');
+      if (!b) return;
+      const co = b.dataset.p;
+      if (co === 'anuluj') zamknij(null);
+      else if (co === 'cofnij') pole.cofnij();
+      else if (co === 'wyczysc') pole.wyczysc();
+      else if (co === 'gotowe') {
+        if (pole.pusty()) { alert('Najpierw podpisz się palcem w białym polu.'); return; }
+        const obraz = pole.obraz();
+        if (!obraz) { alert('Podpis jest zbyt skomplikowany – wyczyść i podpisz się jeszcze raz, prościej.'); return; }
+        zamknij(obraz);
+      }
+    });
+  });
 }

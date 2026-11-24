@@ -858,7 +858,6 @@ async function ekranUstawienia() {
 // ------------------------------------------------------------
 // EKRAN: mój podpis (rysowany palcem, wstawiany do PDF moich protokołów)
 // ------------------------------------------------------------
-let polePodpisu = null;
 async function ekranPodpis() {
   await PODPIS.wczytajPodpisy(true);
   const moj = PODPIS.podpisKonta(C.sesja.konto);
@@ -871,16 +870,10 @@ async function ekranPodpis() {
         <div class="podpis-podglad"><img src="${h(moj.obraz)}" alt="Mój podpis"></div>
         <button class="sredni" data-akcja="podpisUsun">🗑 Usuń podpis</button>
       </section>` : ''}
-      <h3>${moj ? 'Nowy podpis' : 'Podpisz się palcem'}</h3>
-      <p class="info">📱 Obróć telefon poziomo – będzie więcej miejsca.</p>
-      <div class="podpis-pole"><canvas id="polePodpisu"></canvas><span class="podpis-linia"></span></div>
-      <div class="rzad">
-        <button class="sredni" data-akcja="podpisCofnij">↶ Cofnij kreskę</button>
-        <button class="sredni" data-akcja="podpisWyczysc">✕ Wyczyść</button>
-      </div>
+      ${moj ? '' : '<p class="pusto">Nie masz jeszcze podpisu.</p>'}
+      <p class="info">Po dotknięciu przycisku otworzy się białe pole na cały ekran. Podpisz się palcem i dotknij „✓ Gotowe”. Najwygodniej trzymać telefon poziomo.</p>
     </main>
-    <footer class="dolny"><button class="duzy glowny" data-akcja="podpisZapisz">💾 Zapisz podpis</button></footer>`;
-  polePodpisu = PODPIS.polePodpisu(document.getElementById('polePodpisu'));
+    <footer class="dolny"><button class="duzy glowny" data-akcja="podpisOtworz">✍ ${moj ? 'Zmień podpis' : 'Podpisz się'}</button></footer>`;
 }
 
 // Ustawienie „gdzie zapisywać PDF” (tylko na tym urządzeniu).
@@ -1524,12 +1517,9 @@ const akcje = {
     await K.zapiszBudzet({ kurs });
     ekranKoszty();
   },
-  podpisCofnij() { if (polePodpisu) polePodpisu.cofnij(); },
-  podpisWyczysc() { if (polePodpisu) polePodpisu.wyczysc(); },
-  async podpisZapisz() {
-    if (!polePodpisu || polePodpisu.pusty()) return alert('Najpierw podpisz się palcem w białym polu.');
-    const obraz = polePodpisu.obraz();
-    if (!obraz) return alert('Podpis jest zbyt skomplikowany – wyczyść i podpisz się jeszcze raz, prościej.');
+  async podpisOtworz() {
+    const obraz = await PODPIS.otworzOknoPodpisu();
+    if (!obraz) return;
     await PODPIS.zapiszMojPodpis(obraz);
     pokazKomunikat(navigator.onLine ? 'Zapisano podpis ✓' : 'Zapisano podpis ✓ (wyśle się, gdy będzie internet)');
     await ekranPodpis();
@@ -2123,7 +2113,6 @@ async function pokaz() {
   await zapiszTeraz();
   const [rodzaj, id] = location.hash.replace(/^#\/?/, '').split('/');
   if (rodzaj !== 'protokol') biezacy = null;
-  if (polePodpisu) { polePodpisu.zakoncz(); polePodpisu = null; }
   if (rodzaj === 'grupa') await ekranGrupa(id);
   else if (rodzaj === 'przeglad') await ekranPrzeglad(id);
   else if (rodzaj === 'protokol') await ekranProtokol(id);
