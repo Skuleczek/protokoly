@@ -33,6 +33,9 @@ const POTOCZNIE = {
   13: 'automatyka, sterownik, szafa sterownicza',
 };
 
+// „Wymiana filtrów” – „Sekcja OK” (ręcznie i głosem) jej nie zaznacza.
+const WYMIANA_FILTROW = ['4.3', '5.3', '6.3'];
+
 function opisSzablonu(sz) {
   const linie = [];
   for (const s of sz.sekcje) {
@@ -47,6 +50,7 @@ function opisSzablonu(sz) {
       if (p.dodatkowe && p.dodatkowe.typ === 'zaznacz') t += `; kratka „${p.dodatkowe.etykieta}” (do_wymiany_lub_czyszczenia)`;
       if (p.dodatkowe && p.dodatkowe.typ === 'wartosc') t += `; pole „${p.dodatkowe.etykieta}” (nastawa, tekst z jednostką)`;
       if (p.polaTekstowe) t += `; pole „${p.polaTekstowe.map((x) => x.etykieta).join(', ')}” (rozmiar)`;
+      if (WYMIANA_FILTROW.includes(p.nr)) t += ' [NIE ZAZNACZAJ Z OCENY SEKCJI – tylko gdy wprost mowa o wymianie filtrów]';
       if (p.opcjonalny) t += ' [PUNKT OPCJONALNY – zaznaczaj tylko, gdy wprost o nim mowa' + (p.dodatkowe && p.dodatkowe.typ === 'wartosc' ? ' albo podano nastawę (wtedy "poz", chyba że powiedziano o zastrzeżeniach)' : '') + ']';
       linie.push(t);
     }
@@ -65,7 +69,7 @@ ${opisSzablonu(sz)}
 Stopka: termin (Termin następnego przeglądu), uwagi (Uwagi i zalecenia).
 
 # ZASADY INTERPRETACJI (bardzo ważne)
-1. CAŁA SEKCJA BEZ ZASTRZEŻEŃ: gdy serwisant mówi o całej sekcji, że jest sprawna/OK/w porządku (np. „sekcja wentylatora nawiewnego sprawna”, „nawiew ok”), zwróć sekcję ze stanem "jest" ORAZ stan "poz" dla WSZYSTKICH punktów wyboru tej sekcji – z wyjątkiem punktów opcjonalnych (oznaczonych [PUNKT OPCJONALNY]), które zaznaczasz tylko, gdy wprost o nich mowa. Pól liczbowych NIE wypełniaj z samej oceny sekcji.
+1. CAŁA SEKCJA BEZ ZASTRZEŻEŃ: gdy serwisant mówi o całej sekcji, że jest sprawna/OK/w porządku (np. „sekcja wentylatora nawiewnego sprawna”, „nawiew ok”), zwróć sekcję ze stanem "jest" ORAZ stan "poz" dla WSZYSTKICH punktów wyboru tej sekcji – z wyjątkiem punktów opcjonalnych (oznaczonych [PUNKT OPCJONALNY]), które zaznaczasz tylko, gdy wprost o nich mowa. Także punktów „Wymiana filtrów” (4.3, 5.3, 6.3) NIE zaznaczaj z oceny sekcji: „filtry wstępne ok” → 4.1 i 4.2 "poz", 4.3 bez zmian (null); wymianę zaznaczaj tylko, gdy padło wprost („filtry wymienione” → "poz", „filtrów nie wymieniałem” / „bez wymiany” → "neg"). Pól liczbowych NIE wypełniaj z samej oceny sekcji.
 2. WYJĄTKI NADPISUJĄ REGUŁĘ SEKCJI: „nawiewna sprawna, ale łożyska do wymiany” → 1.1–1.3 "poz", 1.5 stan "puste" + do_wymiany_lub_czyszczenia = true; 1.4 tylko jeśli o nim mowa.
 3. BRAK SEKCJI: „sekcja X brak”, „nie ma nagrzewnicy elektrycznej”, „bez rotora” → sekcja ze stanem "brak". Nie zwracaj żadnych punktów ani liczb tej sekcji.
 4. LICZBY: pól liczbowych (prądy, nastawy, nastawa bezpiecznika) NIGDY nie zgaduj ani nie wyliczaj. Wpisuj tylko wartości wprost podane. Zapis z przecinkiem dziesiętnym („trzy przecinek dwa” → "3,2"), bez jednostki w polach prądów [A]. Nastawę wpisuj z jednostką, jeśli padła („250 paskali” → "250 Pa", „pięć stopni” → "5°C"). Jeżeli sekcja ma stan "jest", a nie podano wymaganej (nieopcjonalnej) wartości liczbowej – dodaj do do_sprawdzenia wpis typu "uzupelnij" dla tego pola (cytat: pusty tekst). Nie oznaczaj braku pól opcjonalnych.

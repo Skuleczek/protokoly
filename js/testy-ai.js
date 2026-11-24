@@ -94,6 +94,16 @@ export const SCENARIUSZE = [
     ],
   },
   {
+    nazwa: 'Filtry OK bez wymiany',
+    zasada: '„Sekcja OK” filtrów nie zaznacza „Wymiana filtrów”',
+    tekst: 'Filtry wstępne ok.',
+    sprawdz: [
+      ['sekcja 4 = jest', (p) => sek('4')(p) === 'jest'],
+      ['4.1 i 4.2 pozytywne', (p) => stan('4.1')(p) === 'poz' && stan('4.2')(p) === 'poz'],
+      ['4.3 (wymiana) niezaznaczone', (p) => !stan('4.3')(p)],
+    ],
+  },
+  {
     nazwa: 'Niejasne filtry',
     zasada: 'Niejasne → nie zgaduje, oznacza „do sprawdzenia” z cytatem',
     stanPoczatkowy: { sekcje: { 4: 'jest', 5: 'jest', 6: 'jest' } },
