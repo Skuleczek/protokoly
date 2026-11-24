@@ -1,5 +1,12 @@
 [
  {
+  "wersja": "2026.11.24-1825",
+  "zmiany": [
+   "Podpisy są czarne (także te dodane wcześniej – w PDF i w podglądzie).",
+   "Administrator: w „Użytkownicy i kody” widać podpis każdej osoby i można go usunąć."
+  ]
+ },
+ {
   "wersja": "2026.11.24-1814",
   "zmiany": [
    "Mój podpis: przycisk „✍ Podpisz się” otwiera białe pole na cały ekran – strona nie przesuwa się podczas podpisywania. Na Androidzie ekran sam obraca się poziomo (jeśli telefon pozwala)."

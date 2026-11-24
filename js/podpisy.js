@@ -12,7 +12,7 @@ import { baza } from './baza.js';
 import { sesja } from './chmura.js';
 
 const MAKS_ZNAKOW = 55000; // limit w regułach Firestore: 60000
-const KOLOR = '#14285a';   // ciemnogranatowy, jak długopis
+const KOLOR = '#000000';   // czarny
 
 // konto -> { obraz, imie, zmieniono } (tylko podpisy, które istnieją)
 let podpisy = null;
@@ -38,9 +38,32 @@ export function zapiszMojPodpis(obraz) {
   return baza.zapisz('podpisy', wpis);
 }
 
-export function usunMojPodpis() {
-  if (podpisy) podpisy.delete(sesja.konto);
-  return baza.usun('podpisy', sesja.konto);
+export const usunMojPodpis = () => usunPodpisKonta(sesja.konto);
+
+// Usunięcie podpisu: własnego albo (administrator) dowolnej osoby.
+export function usunPodpisKonta(konto) {
+  if (podpisy) podpisy.delete(konto);
+  return baza.usun('podpisy', konto);
+}
+
+// Podpis na czarno (starsze podpisy były granatowe). Przezroczystość zostaje.
+const czarne = new Map();
+export async function naCzarno(obraz) {
+  if (czarne.has(obraz)) return czarne.get(obraz);
+  const img = new Image();
+  img.src = obraz;
+  await img.decode();
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const cx = c.getContext('2d');
+  cx.drawImage(img, 0, 0);
+  const dane = cx.getImageData(0, 0, c.width, c.height);
+  const px = dane.data;
+  for (let i = 0; i < px.length; i += 4) { px[i] = 0; px[i + 1] = 0; px[i + 2] = 0; }
+  cx.putImageData(dane, 0, 0);
+  const wynik = c.toDataURL('image/png');
+  czarne.set(obraz, wynik);
+  return wynik;
 }
 
 // ------------------------------------------------------------

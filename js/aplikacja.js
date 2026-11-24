@@ -1177,7 +1177,10 @@ async function generujPdf(protokoly, nazwaPliku) {
   const bezPodpisu = new Set();
   for (const p of protokoly) {
     const pod = PODPIS.podpisKonta(p.autor);
-    if (pod) podpisy[p.autor] = pod.obraz; else bezPodpisu.add(p.autorImie || p.autor || '?');
+    if (!pod) { bezPodpisu.add(p.autorImie || p.autor || '?'); continue; }
+    if (!podpisy[p.autor]) {
+      try { podpisy[p.autor] = await PODPIS.naCzarno(pod.obraz); } catch (e) { podpisy[p.autor] = pod.obraz; }
+    }
   }
   try {
     const { utworzPdf } = await import('./pdf.js');
@@ -1452,6 +1455,7 @@ async function ekranUzytkownicy() {
     ekran.querySelector('main').innerHTML = '<p class="pusto">Lista użytkowników wymaga internetu.</p>';
     return;
   }
+  try { await PODPIS.wczytajPodpisy(true); } catch (e) { /* bez podpisów */ }
   const dataG = (d) => godzinaPL(d.getTime());
   ekran.innerHTML = `
     <header class="pasek"><a class="wstecz" href="#/administrator">‹</a><h1>Użytkownicy</h1></header>
@@ -1469,6 +1473,9 @@ async function ekranUzytkownicy() {
           <div class="tytul">${h(k.imie)} ${k.admin ? '<span class="plakietka ok">administrator</span>' : ''}
             ${k.aktywny ? '' : '<span class="plakietka brak">zablokowane</span>'}</div>
           <div class="opis">Urządzenia: ${k.urzadzen}${k.kodyAktywne.length ? ` · czekające kody: ${k.kodyAktywne.map((x) => `${x.kod} (do ${dataG(x.wazneDo)})`).join(', ')}` : ''}</div>
+          ${PODPIS.podpisKonta(k.id) ? `<div class="podpis-podglad maly"><img src="${h(PODPIS.podpisKonta(k.id).obraz)}" alt="Podpis: ${h(k.imie)}"></div>
+            <button class="sredni" data-akcja="usunPodpisOsoby" data-id="${k.id}" data-imie="${h(k.imie)}">🗑 Usuń podpis</button>`
+          : '<div class="opis">✍ Brak podpisu</div>'}
           <div class="rzad">
             <button class="sredni" data-akcja="kodDla" data-id="${k.id}" data-imie="${h(k.imie)}">🔑 Nowy kod</button>
             ${k.id === C.sesja.konto ? '' : `<button class="sredni ${k.aktywny ? 'niebezpieczny' : ''}" data-akcja="przelaczBlokade" data-id="${k.id}" data-aktywny="${k.aktywny ? '1' : ''}">${k.aktywny ? '⛔ Zablokuj' : '✓ Odblokuj'}</button>`}
@@ -1523,6 +1530,12 @@ const akcje = {
     await PODPIS.zapiszMojPodpis(obraz);
     pokazKomunikat(navigator.onLine ? 'Zapisano podpis ✓' : 'Zapisano podpis ✓ (wyśle się, gdy będzie internet)');
     await ekranPodpis();
+  },
+  async usunPodpisOsoby(el) {
+    if (!confirm(`Usunąć podpis osoby ${el.dataset.imie}? Jej protokoły w PDF będą bez podpisu, dopóki nie doda nowego.`)) return;
+    await PODPIS.usunPodpisKonta(el.dataset.id);
+    pokazKomunikat('Usunięto podpis');
+    await ekranUzytkownicy();
   },
   async podpisUsun() {
     if (!confirm('Usunąć Twój podpis? PDF Twoich protokołów będą bez podpisu, dopóki nie dodasz nowego.')) return;
