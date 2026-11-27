@@ -867,7 +867,7 @@ async function ekranPodpis() {
       <p class="info">Podpis wstawia się sam do PDF każdego Twojego protokołu (autor: 👤 ${h(C.sesja.imie)}). Wystarczy dodać go raz – można go zmienić w każdej chwili.</p>
       ${moj ? `<section class="karta">
         <h3>Obecny podpis</h3>
-        <div class="podpis-podglad"><img src="${h(moj.obraz)}" alt="Mój podpis"></div>
+        <div class="podpis-podglad"><img data-podpis src="${h(moj.obraz)}" alt="Mój podpis"></div>
         <button class="sredni" data-akcja="podpisUsun">🗑 Usuń podpis</button>
       </section>` : ''}
       ${moj ? '' : '<p class="pusto">Nie masz jeszcze podpisu.</p>'}
@@ -884,6 +884,7 @@ async function ekranPodpis() {
         </label>
       </section>
     </main>`;
+  PODPIS.pokolorujPodglady(ekran);
 }
 
 // Ustawienie „gdzie zapisywać PDF” (tylko na tym urządzeniu).
@@ -1189,7 +1190,7 @@ async function generujPdf(protokoly, nazwaPliku) {
     const pod = PODPIS.podpisKonta(p.autor);
     if (!pod) { bezPodpisu.add(p.autorImie || p.autor || '?'); continue; }
     if (!podpisy[p.autor]) {
-      try { podpisy[p.autor] = await PODPIS.naCzarno(pod.obraz); } catch (e) { podpisy[p.autor] = pod.obraz; }
+      try { podpisy[p.autor] = await PODPIS.naKolor(pod.obraz); } catch (e) { podpisy[p.autor] = pod.obraz; }
     }
   }
   try {
@@ -1483,7 +1484,7 @@ async function ekranUzytkownicy() {
           <div class="tytul">${h(k.imie)} ${k.admin ? '<span class="plakietka ok">administrator</span>' : ''}
             ${k.aktywny ? '' : '<span class="plakietka brak">zablokowane</span>'}</div>
           <div class="opis">Urządzenia: ${k.urzadzen}${k.kodyAktywne.length ? ` · czekające kody: ${k.kodyAktywne.map((x) => `${x.kod} (do ${dataG(x.wazneDo)})`).join(', ')}` : ''}</div>
-          ${PODPIS.podpisKonta(k.id) ? `<div class="podpis-podglad maly"><img src="${h(PODPIS.podpisKonta(k.id).obraz)}" alt="Podpis: ${h(k.imie)}"></div>
+          ${PODPIS.podpisKonta(k.id) ? `<div class="podpis-podglad maly"><img data-podpis src="${h(PODPIS.podpisKonta(k.id).obraz)}" alt="Podpis: ${h(k.imie)}"></div>
             <button class="sredni" data-akcja="usunPodpisOsoby" data-id="${k.id}" data-imie="${h(k.imie)}">🗑 Usuń podpis</button>`
           : '<div class="opis">✍ Brak podpisu</div>'}
           <div class="rzad">
@@ -1494,6 +1495,7 @@ async function ekranUzytkownicy() {
       </ul>
       <p class="info">Zablokowanie odcina dostęp na wszystkich urządzeniach tej osoby. Jej protokoły zostają w bazie.</p>
     </main>`;
+  PODPIS.pokolorujPodglady(ekran);
 }
 
 // ------------------------------------------------------------

@@ -12,7 +12,10 @@ import { baza } from './baza.js';
 import { sesja } from './chmura.js';
 
 const MAKS_ZNAKOW = 55000; // limit w regułach Firestore: 60000
-const KOLOR = '#000000';   // czarny
+// Kolor podpisu: niebieski jak z długopisu. Zapisane podpisy (czarne, starsze granatowe)
+// są przekolorowywane przy PDF i w podglądzie (naKolor), więc wystarczy zmienić tutaj.
+const KOLOR_RGB = [22, 52, 158];
+const KOLOR = `rgb(${KOLOR_RGB.join(',')})`;
 
 // konto -> { obraz, imie, zmieniono } (tylko podpisy, które istnieją)
 let podpisy = null;
@@ -38,6 +41,13 @@ export function zapiszMojPodpis(obraz) {
   return baza.zapisz('podpisy', wpis);
 }
 
+// Podglądy podpisów na ekranie (img[data-podpis]) w kolorze długopisu.
+export async function pokolorujPodglady(korzen = document) {
+  for (const img of korzen.querySelectorAll('img[data-podpis]')) {
+    try { img.src = await naKolor(img.getAttribute('src')); img.removeAttribute('data-podpis'); } catch (e) { /* zostaje oryginał */ }
+  }
+}
+
 export const usunMojPodpis = () => usunPodpisKonta(sesja.konto);
 
 // Usunięcie podpisu: własnego albo (administrator) dowolnej osoby.
@@ -46,10 +56,10 @@ export function usunPodpisKonta(konto) {
   return baza.usun('podpisy', konto);
 }
 
-// Podpis na czarno (starsze podpisy były granatowe). Przezroczystość zostaje.
-const czarne = new Map();
-export async function naCzarno(obraz) {
-  if (czarne.has(obraz)) return czarne.get(obraz);
+// Podpis w kolorze długopisu (KOLOR_RGB), niezależnie od koloru zapisanego. Przezroczystość zostaje.
+const przekolorowane = new Map();
+export async function naKolor(obraz) {
+  if (przekolorowane.has(obraz)) return przekolorowane.get(obraz);
   const img = new Image();
   img.src = obraz;
   await img.decode();
@@ -59,10 +69,11 @@ export async function naCzarno(obraz) {
   cx.drawImage(img, 0, 0);
   const dane = cx.getImageData(0, 0, c.width, c.height);
   const px = dane.data;
-  for (let i = 0; i < px.length; i += 4) { px[i] = 0; px[i + 1] = 0; px[i + 2] = 0; }
+  const [kr, kg, kb] = KOLOR_RGB;
+  for (let i = 0; i < px.length; i += 4) { px[i] = kr; px[i + 1] = kg; px[i + 2] = kb; }
   cx.putImageData(dane, 0, 0);
   const wynik = c.toDataURL('image/png');
-  czarne.set(obraz, wynik);
+  przekolorowane.set(obraz, wynik);
   return wynik;
 }
 
@@ -362,7 +373,7 @@ export async function otworzOknoZdjeciaPodpisu(plik) {
       const alfa = png ? alfaZPng(canvas) : tuszZeZdjecia(canvas, czulosc);
       wynik = alfaDoPng(alfa, canvas.width, canvas.height);
       img.hidden = !wynik; brak.hidden = !!wynik;
-      if (wynik) img.src = wynik;
+      if (wynik) naKolor(wynik).then((u) => { img.src = u; }, () => { img.src = wynik; });
     };
     przelicz();
     let czekaj = null;

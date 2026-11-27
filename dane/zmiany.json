@@ -1,5 +1,11 @@
 [
  {
+  "wersja": "2026.11.27-1022",
+  "zmiany": [
+   "Podpis ma kolor niebieski jak z długopisu – w PDF i w podglądzie, także podpisy dodane wcześniej."
+  ]
+ },
+ {
   "wersja": "2026.11.24-2114",
   "zmiany": [
    "Podpis w PDF jest jeszcze trochę mniejszy."
